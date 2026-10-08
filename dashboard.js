@@ -1537,11 +1537,17 @@ class StockFuturesTerminal {
     // 關閉彈窗按鈕與遮罩點擊
     const closeBtn = document.getElementById('modal-portfolio-close');
     const cancelBtn = document.getElementById('modal-portfolio-cancel');
-    const closeModal = () => modalEl.classList.remove('open');
+    const closeModal = () => {
+      modalEl.classList.remove('open');
+      modalEl.style.display = 'none';
+    };
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
     modalEl.addEventListener('click', (e) => {
       if (e.target === modalEl) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modalEl.classList.contains('open')) closeModal();
     });
 
     // 交易方向多空切換按鈕
@@ -1700,7 +1706,7 @@ class StockFuturesTerminal {
         }
 
         this.savePortfolio();
-        modalEl.classList.remove('open');
+        closeModal();
         this.activeTab = 'portfolio';
         document.querySelectorAll('.terminal-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'portfolio'));
         document.querySelectorAll('.tab-view').forEach(v => v.classList.toggle('active', v.id === 'tab-portfolio'));
@@ -1742,6 +1748,10 @@ class StockFuturesTerminal {
 
   openPortfolioModal(existingPos = null, prefillSymbol = null) {
     const modalEl = document.getElementById('modal-portfolio-pos');
+    if (!modalEl) {
+      console.error('Modal element modal-portfolio-pos not found');
+      return;
+    }
     const titleEl = document.getElementById('modal-portfolio-title');
     const editIdInput = document.getElementById('pos-edit-id');
     const symbolSelect = document.getElementById('pos-select-symbol');
@@ -1755,21 +1765,23 @@ class StockFuturesTerminal {
     const r2Input = document.getElementById('pos-input-2r');
     const r3Input = document.getElementById('pos-input-3r');
 
-    if (!modalEl || !symbolSelect) return;
-
     // 1. 動態填入標的選單 (Populate symbol options with live quotes)
-    symbolSelect.innerHTML = this.marketData.map(m => `
-      <option value="${m.symbol}">
-        ${m.name} (${m.symbol}) — NT$ ${formatPrice(m.price)} (${formatChangePct(m.changePct)})
-      </option>
-    `).join('');
+    if (symbolSelect) {
+      symbolSelect.innerHTML = this.marketData.map(m => `
+        <option value="${m.symbol}">
+          ${m.name} (${m.symbol}) — NT$ ${formatPrice(m.price)} (${formatChangePct(m.changePct)})
+        </option>
+      `).join('');
+    }
 
     if (existingPos) {
       // 編輯模式
       if (titleEl) titleEl.innerHTML = `✏️ 編輯【${existingPos.name}】庫存監控部位`;
       if (editIdInput) editIdInput.value = existingPos.id;
-      symbolSelect.value = existingPos.symbol;
-      symbolSelect.disabled = true; // 編輯時鎖定標的
+      if (symbolSelect) {
+        symbolSelect.value = existingPos.symbol;
+        symbolSelect.disabled = true; // 編輯時鎖定標的
+      }
       if (monthInput) monthInput.value = existingPos.contractMonth || `${this.settlementInfo.contractMonth} (近月)`;
 
       const isLong = existingPos.direction === 'LONG';
@@ -1786,10 +1798,10 @@ class StockFuturesTerminal {
       // 新增模式
       if (titleEl) titleEl.innerHTML = `➕ 新增個股期貨庫存監控部位`;
       if (editIdInput) editIdInput.value = '';
-      symbolSelect.disabled = false;
+      if (symbolSelect) symbolSelect.disabled = false;
 
       const defaultSym = prefillSymbol || (this.marketData[0] ? this.marketData[0].symbol : 'CDF');
-      symbolSelect.value = defaultSym;
+      if (symbolSelect) symbolSelect.value = defaultSym;
 
       const live = this.marketData.find(m => m.symbol === defaultSym) || this.marketData[0] || { price: 100, atr14: 5 };
       if (monthInput) monthInput.value = `${this.settlementInfo.contractMonth} (近月)`;
@@ -1805,6 +1817,7 @@ class StockFuturesTerminal {
 
     this.updateModalRiskPreview();
     modalEl.classList.add('open');
+    modalEl.style.display = 'flex';
   }
 
   updateModalRiskPreview() {
@@ -2149,6 +2162,26 @@ class StockFuturesTerminal {
     }, 3500);
   }
 }
+
+// Global Delegation Fallback (保證在任何頁面狀態與動態渲染下點擊皆能 100% 觸發彈窗)
+document.addEventListener('click', (e) => {
+  const addBtn = e.target.closest('#btn-open-add-pos-modal, #btn-empty-add-pos, .btn-rank-to-pos');
+  if (addBtn && window.stockTerminal) {
+    e.preventDefault();
+    const sym = addBtn.dataset.symbol || null;
+    window.stockTerminal.openPortfolioModal(null, sym);
+  }
+
+  const editBtn = e.target.closest('.btn-pos-edit');
+  if (editBtn && window.stockTerminal) {
+    e.preventDefault();
+    const posId = editBtn.dataset.id;
+    const targetPos = window.stockTerminal.portfolio.find(p => p.id === posId);
+    if (targetPos) {
+      window.stockTerminal.openPortfolioModal(targetPos);
+    }
+  }
+});
 
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
