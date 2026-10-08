@@ -584,6 +584,44 @@ body {
   color: #ffffff;
 }
 
+/* Form Controls & Modal Fields */
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.form-control,
+.form-select {
+  width: 100%;
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
+}
+
+.form-select option {
+  background: var(--bg-card);
+  color: var(--text-main);
+}
+
 .btn-direction {
   background: var(--bg-subtle);
   color: var(--text-muted);

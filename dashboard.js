@@ -1740,6 +1740,130 @@ class StockFuturesTerminal {
     if (r3Input) r3Input.value = direction === 'LONG' ? roundToTick(entry + riskPerShare * 3, 'CEIL') : roundToTick(entry - riskPerShare * 3, 'FLOOR');
   }
 
+  openPortfolioModal(existingPos = null, prefillSymbol = null) {
+    const modalEl = document.getElementById('modal-portfolio-pos');
+    const titleEl = document.getElementById('modal-portfolio-title');
+    const editIdInput = document.getElementById('pos-edit-id');
+    const symbolSelect = document.getElementById('pos-select-symbol');
+    const monthInput = document.getElementById('pos-input-month');
+    const btnDirLong = document.getElementById('pos-dir-long');
+    const btnDirShort = document.getElementById('pos-dir-short');
+    const entryInput = document.getElementById('pos-input-entry');
+    const qtyInput = document.getElementById('pos-input-contracts');
+    const stopInput = document.getElementById('pos-input-stoploss');
+    const r1Input = document.getElementById('pos-input-1r');
+    const r2Input = document.getElementById('pos-input-2r');
+    const r3Input = document.getElementById('pos-input-3r');
+
+    if (!modalEl || !symbolSelect) return;
+
+    // 1. 動態填入標的選單 (Populate symbol options with live quotes)
+    symbolSelect.innerHTML = this.marketData.map(m => `
+      <option value="${m.symbol}">
+        ${m.name} (${m.symbol}) — NT$ ${formatPrice(m.price)} (${formatChangePct(m.changePct)})
+      </option>
+    `).join('');
+
+    if (existingPos) {
+      // 編輯模式
+      if (titleEl) titleEl.innerHTML = `✏️ 編輯【${existingPos.name}】庫存監控部位`;
+      if (editIdInput) editIdInput.value = existingPos.id;
+      symbolSelect.value = existingPos.symbol;
+      symbolSelect.disabled = true; // 編輯時鎖定標的
+      if (monthInput) monthInput.value = existingPos.contractMonth || `${this.settlementInfo.contractMonth} (近月)`;
+
+      const isLong = existingPos.direction === 'LONG';
+      if (btnDirLong) btnDirLong.classList.toggle('active', isLong);
+      if (btnDirShort) btnDirShort.classList.toggle('active', !isLong);
+
+      if (entryInput) entryInput.value = existingPos.entryPrice;
+      if (qtyInput) qtyInput.value = existingPos.contracts || 1;
+      if (stopInput) stopInput.value = existingPos.currentStopLoss;
+      if (r1Input) r1Input.value = existingPos.target1R || '';
+      if (r2Input) r2Input.value = existingPos.target2R || '';
+      if (r3Input) r3Input.value = existingPos.target3R || '';
+    } else {
+      // 新增模式
+      if (titleEl) titleEl.innerHTML = `➕ 新增個股期貨庫存監控部位`;
+      if (editIdInput) editIdInput.value = '';
+      symbolSelect.disabled = false;
+
+      const defaultSym = prefillSymbol || (this.marketData[0] ? this.marketData[0].symbol : 'CDF');
+      symbolSelect.value = defaultSym;
+
+      const live = this.marketData.find(m => m.symbol === defaultSym) || this.marketData[0] || { price: 100, atr14: 5 };
+      if (monthInput) monthInput.value = `${this.settlementInfo.contractMonth} (近月)`;
+
+      if (btnDirLong) btnDirLong.classList.add('active');
+      if (btnDirShort) btnDirShort.classList.remove('active');
+
+      if (entryInput) entryInput.value = live.price;
+      if (qtyInput) qtyInput.value = 1;
+
+      this.recalcModalStopLoss('LONG', 'ATR');
+    }
+
+    this.updateModalRiskPreview();
+    modalEl.classList.add('open');
+  }
+
+  updateModalRiskPreview() {
+    const previewBox = document.getElementById('pos-risk-preview-box');
+    if (!previewBox) return;
+
+    const symbolSelect = document.getElementById('pos-select-symbol');
+    const entryInput = document.getElementById('pos-input-entry');
+    const qtyInput = document.getElementById('pos-input-contracts');
+    const stopInput = document.getElementById('pos-input-stoploss');
+    const btnDirLong = document.getElementById('pos-dir-long');
+
+    const sym = symbolSelect?.value || 'CDF';
+    const live = this.marketData.find(m => m.symbol === sym) || { price: 100, marginRate: 0.135, sharesPerContract: 2000 };
+    const entry = parseFloat(entryInput?.value) || live.price || 0;
+    const contracts = parseInt(qtyInput?.value) || 1;
+    const stopLoss = parseFloat(stopInput?.value) || 0;
+    const isLong = btnDirLong ? btnDirLong.classList.contains('active') : true;
+
+    const sharesPerContract = live.sharesPerContract || 2000;
+    const marginRate = live.marginRate || 0.135;
+    const notionalValue = entry * sharesPerContract * contracts;
+    const requiredMargin = notionalValue * marginRate;
+
+    const priceDiffPerShare = isLong ? (entry - stopLoss) : (stopLoss - entry);
+    const riskPerContract = Math.max(0, priceDiffPerShare * sharesPerContract);
+    const totalRisk = riskPerContract * contracts;
+    const riskPct = entry > 0 ? ((Math.abs(entry - stopLoss) / entry) * 100).toFixed(2) : 0;
+
+    const riskWarning = totalRisk > this.maxRiskPerTrade
+      ? `<span style="color:var(--bull-color); font-weight:700;"> ⚠️ 超出單筆風控上限 NT$ ${this.maxRiskPerTrade.toLocaleString()}！</span>`
+      : `<span style="color:#10b981; font-weight:700;"> ✓ 符合單筆風控預算</span>`;
+
+    previewBox.innerHTML = `
+      <div style="font-weight:700; color:var(--neon-cyan); margin-bottom:6px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+        <span>🛡️ 即時保證金與風控曝險試算</span>
+        ${riskWarning}
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px;">
+        <div>
+          <span style="color:var(--text-muted);">掌控名目總值：</span><br>
+          <b style="color:var(--text-main);">NT$ ${Math.round(notionalValue).toLocaleString()}</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted);">預估應繳保證金：</span><br>
+          <b style="color:var(--neon-purple);">NT$ ${Math.round(requiredMargin).toLocaleString()}</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted);">停損風險價差：</span><br>
+          <b style="color:var(--bear-color);">${Math.abs(entry - stopLoss).toFixed(1)} 元 (${riskPct}%)</b>
+        </div>
+        <div>
+          <span style="color:var(--text-muted);">單筆最大停損額：</span><br>
+          <b style="color:var(--bull-color); font-size:1rem;">NT$ ${Math.round(totalRisk).toLocaleString()}</b>
+        </div>
+      </div>
+    `;
+  }
+
   // ==============================================================================
   // 7. Trade Planner & Risk Calculator View (交易計畫與風控試算)
   // ==============================================================================
