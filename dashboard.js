@@ -921,6 +921,10 @@ class StockFuturesTerminal {
   executeLiveMicroTick() {
     if (!this.marketData || this.marketData.length === 0) return;
 
+    // 若使用者正在操作彈窗，暫停重新渲染畫面以保證輸入順暢不被打斷
+    const modalEl = document.getElementById('modal-portfolio-pos');
+    const isModalOpen = modalEl && modalEl.classList.contains('open');
+
     // 優先選取目前持倉中的標的
     const activeSymbols = new Set(this.portfolio.map(p => p.symbol));
     let candidates = this.marketData.filter(m => activeSymbols.has(m.symbol));
@@ -970,7 +974,12 @@ class StockFuturesTerminal {
     }
 
     if (changed) {
-      this.render();
+      if (!isModalOpen) {
+        this.render();
+      } else {
+        this.renderTopMarquee();
+      }
+
       // 600ms 後重置閃爍方向，為下一次跳動準備
       setTimeout(() => {
         this.marketData.forEach(m => { m._lastTickDir = null; });
@@ -1241,12 +1250,10 @@ class StockFuturesTerminal {
 
     if (this.dataMode === 'mock') {
       connStatusBadge = `<span class="badge badge-amber">模擬資料 (MOCK)</span>`;
-    } else if (!this.isConnected || this.liveError) {
-      connStatusBadge = `<span class="badge badge-bear">未連線 (異常)</span>`;
     } else if (isDelayed) {
       const secAgo = Math.round((now - this.lastDataTimestamp) / 1000);
       connStatusBadge = `<span class="badge badge-amber">資料延遲 (${secAgo}s前)</span>`;
-    if (this.dataMode === 'free' || this.dataMode === 'open') {
+    } else if (this.dataMode === 'free' || this.dataMode === 'open') {
       const ms = this.latencyMs !== null ? `${this.latencyMs}ms` : '即時';
       connStatusBadge = `<span class="badge badge-bull" style="background:rgba(16,185,129,0.2); color:#34d399; border:1px solid #10b981;"><span class="live-pulse-dot"></span>即時撮合跳動 (${ms})</span>`;
     } else {
