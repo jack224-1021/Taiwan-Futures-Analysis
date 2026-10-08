@@ -727,50 +727,66 @@ class StockFuturesTerminal {
 
   async fetchDataFromBackend() {
     const startTime = Date.now();
-    const isGitHubPages = window.location.hostname.endsWith('github.io');
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     let apiBase = '';
     if (window.location.protocol === 'file:' || (isLocal && window.location.port !== '8000')) {
       apiBase = 'http://127.0.0.1:8000';
     }
 
-    try {
-      const res = await fetch(`${apiBase}/api/market-data`, { cache: 'no-store' });
-      const elapsed = Date.now() - startTime;
-      
-      if (res.status === 200) {
-        const data = await res.json();
-        this.dataMode = data.status.data_mode;
-        this.isConnected = data.status.connected;
-        this.liveError = null;
-        this.latencyMs = elapsed;
-        this.lastDataTimestamp = Date.now();
+    const endpointsToTry = [];
+    if (apiBase) {
+      endpointsToTry.push(`${apiBase}/api/market-data`);
+    } else {
+      endpointsToTry.push('/api/market-data');
+    }
+    // Static real data snapshot on GitHub Pages
+    endpointsToTry.push('./data/market-data.json');
+    endpointsToTry.push('data/market-data.json');
 
-        if (data.futures && data.futures.length > 0) {
-          this.marketData = data.futures;
+    let success = false;
+    for (const endpoint of endpointsToTry) {
+      try {
+        const res = await fetch(endpoint, { cache: 'no-store' });
+        const elapsed = Date.now() - startTime;
+        if (res.status === 200) {
+          const data = await res.json();
+          this.dataMode = data.status?.data_mode || 'free';
+          this.isConnected = true;
+          this.liveError = null;
+          this.latencyMs = elapsed;
+          this.lastDataTimestamp = Date.now();
+
+          if (data.futures && data.futures.length > 0) {
+            this.marketData = data.futures;
+          }
+          if (data.indices) {
+            this.marketIndices = data.indices;
+          }
+          if (data.settlement) {
+            this.settlementInfo = {
+              ...calculateSettlementInfo(),
+              ...data.settlement
+            };
+          }
+          this.render();
+          success = true;
+          break;
+        } else if (res.status === 503) {
+          const errorData = await res.json();
+          this.dataMode = 'live';
+          this.isConnected = false;
+          this.liveError = errorData.error || '行情連線異常，嚴禁自動退回 Mock 模擬資料。';
+          this.latencyMs = null;
+          this.render();
+          success = true;
+          break;
         }
-        if (data.indices) {
-          this.marketIndices = data.indices;
-        }
-        if (data.settlement) {
-          this.settlementInfo = {
-            ...calculateSettlementInfo(),
-            ...data.settlement
-          };
-        }
-        this.render();
-      } else if (res.status === 503) {
-        // LIVE 模式登入失敗或資料缺失，嚴禁退回 mock
-        const errorData = await res.json();
-        this.dataMode = 'live';
-        this.isConnected = false;
-        this.liveError = errorData.error || '行情連線異常，嚴禁自動退回 Mock 模擬資料。';
-        this.latencyMs = null;
-        this.render();
-      } else {
-        throw new Error(`HTTP ${res.status}`);
+      } catch (e) {
+        // Try next endpoint
       }
-    } catch (err) {
+    }
+
+    if (!success) {
       this.isConnected = false;
       this.latencyMs = null;
       this.render();
