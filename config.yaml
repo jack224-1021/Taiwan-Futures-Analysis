@@ -1,0 +1,104 @@
+# ==============================================================================
+# 伴伴 / 台股個股期貨強勢排名與庫存盤中分析系統 - 參數設定檔 (config.yaml)
+# 依據使用者實盤偏好設定：專注多方強勢榜 + 永豐 Shioaji API + 名目總值 100~150萬風控模型
+# ==============================================================================
+
+# 1. 系統與排程設定
+system:
+  timezone: "Asia/Taipei"
+  primary_broker_api: "shioaji"    # 主要券商 API：永豐金證券 Shioaji
+  default_strategy_mode: "BULL"    # 預設專注「多方強勢榜」
+  intraday_refresh_seconds: 5      # 盤中庫存部位刷新頻率 (秒)
+  daily_scan_time: "14:30"         # 盤後全市場掃描時間
+  database_path: "data/stock_futures.duckdb"
+  log_level: "INFO"
+
+# 2. 資金規模與風控模型 (使用者專屬客製化)
+risk_management:
+  account_total_capital_ntd: 1200000     # 帳戶總資金 / 準備金 (NT$ 120萬)
+  target_margin_deployed_ntd: 400000     # 建議實際投入保證金上限 (約 40萬)
+  max_notional_value_ntd: 1500000        # 名目合約總值上限 (100萬~150萬)
+  max_risk_per_trade_ntd: 60000          # 單筆最大允許虧損 (5萬~10萬區間，預設 NT$ 60,000)
+  max_risk_per_trade_pct: 5.0            # 單筆最大損失佔本金百分比 (約 5%)
+  max_margin_utilization_pct: 40.0       # 總保證金使用率上限 (約 40 萬 / 120 萬 = 33.3%)
+  min_risk_reward_ratio: 1.5             # 最低風報比要求 (R:R < 1.5 標記不建議進場)
+  default_atr_period: 14
+  default_atr_stop_multiplier: 1.5       # 波動停損：進場價 - 1.5 * ATR(14)
+  trailing_stop_activation_r: 1.5        # 達 1.5R 後停損自動上移至成本價 (保本防護)
+
+# 3. 硬性濾網門檻 (Hard Filters - 不合格直接剔除)
+hard_filters:
+  min_futures_volume_5d_ma: 500          # 個股期貨近5日均量 >= 500口
+  min_spot_turnover_20d_ma_ntd: 100000000 # 現貨20日均成交值 >= 1億 NTD
+  require_above_20ma: true               # 收盤價需 > 20MA
+  require_above_60ma: true               # 收盤價需 > 60MA
+  max_bias_20ma_pct: 15.0                # 相對 20MA 正乖離率上限 (超過標記過熱僅觀察)
+  min_historical_bars: 120               # 至少具備 120 根日K資料
+  exclude_disposition_stocks: true       # 排除注意/處置股票
+  exclude_full_cash_delivery: true       # 排除全額交割股
+
+# 4. 強勢評分權重 (滿分 100 分)
+scoring_weights:
+  # A. 趨勢結構 (滿分 25 分)
+  trend_structure:
+    weight: 25
+    ma_alignment_score: 10               # 多頭排列: 收盤 > MA5 > MA10 > MA20 > MA60
+    near_52w_high_score: 8               # 距離52週高點 <= 10%
+    swing_higher_high_score: 7           # 底部與高點逐步墊高
+
+  # B. 相對強度 (滿分 25 分)
+  relative_strength:
+    weight: 25
+    rs_rating_weight: 12                 # 近20/60/120日綜合報酬之全市場百分位 (0~99)
+    alpha_over_twii_weight: 8            # 相對加權指數超額報酬
+    sector_relative_strength: 5          # 產業板塊內強勢排名前 20%
+
+  # C. 動能與趨勢強度 (滿分 15 分)
+  momentum:
+    weight: 15
+    adx_threshold: 25                    # ADX(14) > 25 且 +DI > -DI (6分)
+    macd_zero_expansion: 5               # MACD 零軸上且柱狀體擴張 (5分)
+    rsi_optimal_min: 55                  # RSI(14) 在 55~80 之間為健康強勢 (4分)
+    rsi_overheated_penalty: 85           # RSI > 85 扣 2 分 (過熱警示)
+
+  # D. 量價與波動 (滿分 15 分)
+  volume_volatility:
+    weight: 15
+    volume_ratio_threshold: 1.5          # 當日量 / 20日均量 >= 1.5 (8分)
+    price_volume_harmony: 4              # 上漲日放量、下跌日量縮 (4分)
+    vcp_breakout_score: 3                # 波動收斂型態 (VCP / 布林帶收窄後突破) (3分)
+
+  # E. 籌碼與期貨特有訊號 (滿分 20 分)
+  chips_and_futures:
+    weight: 20
+    institutional_buy_streak: 8          # 外資/投信連續買超與買超佔比 (8分)
+    futures_oi_surge_with_price: 8       # 價漲 + 期貨 OI 增加 (多方增倉最強訊號) (8分)
+    basis_healthy_score: 4               # 期現貨正價差合理 (4分)
+
+  # 基本面額外加成 (選填，上限 10 分)
+  fundamentals_bonus:
+    enable: true
+    max_bonus: 10
+    revenue_yoy_high_threshold: 20.0     # 連續3月營收年增 > 20% 加 5~10 分
+
+# 5. 台股最小跳動點 (Tick Size) 規範
+tick_sizes:
+  - max_price: 10.0
+    tick: 0.01
+  - max_price: 50.0
+    tick: 0.05
+  - max_price: 100.0
+    tick: 0.10
+  - max_price: 500.0
+    tick: 0.50
+  - max_price: 1000.0
+    tick: 1.00
+  - max_price: 999999.0
+    tick: 5.00
+
+# 6. 個股期貨契約規格常數
+futures_spec:
+  standard_contract_shares: 2000         # 標準型契約 = 2,000 股現貨
+  mini_contract_shares: 100              # 小型契約 = 100 股現貨
+  exchange_tax_rate: 0.00002             # 期交稅率十萬分之二 (0.002%)
+  estimated_commission_per_order: 30      # 預估單邊手續費 NT$ 30 / 口

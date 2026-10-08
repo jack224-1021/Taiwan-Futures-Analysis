@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台股個股期貨強勢排名與盤中決策終端 | Taiwan Stock Futures Alpha Terminal</title>
+  <meta name="description" content="台股全市場個股期貨多空強勢評分排名、庫存盤中即時訊號、進出場計畫與風控部位試算系統。">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800;900&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="dashboard.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
+</head>
+<body>
+
+  <!-- Top System Notice Banner (Mock Mode Warning / Live Error Alerts) -->
+  <div id="system-notice-banner" class="notice-banner-container"></div>
+
+  <!-- Top Terminal Header -->
+  <header class="terminal-header">
+    <div class="terminal-header-inner">
+      
+      <!-- Brand & Title -->
+      <div class="terminal-brand">
+        <div class="terminal-logo-badge">⚡</div>
+        <div class="terminal-title">
+          <h1>
+            台股個股期貨強勢決策終端
+            <span class="badge badge-cyan">PRO v1.0</span>
+          </h1>
+          <p>Taiwan Stock Futures Alpha Ranking & Intraday Decision Engine</p>
+        </div>
+      </div>
+
+      <!-- Realtime Ticker Marquee -->
+      <div class="ticker-bar" id="market-ticker-container">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="terminal-nav" aria-label="終端功能導覽">
+        <button class="terminal-tab-btn active" data-tab="ranking">
+          <span>🏆</span>
+          <span>強勢排名總榜</span>
+        </button>
+        <button class="terminal-tab-btn" data-tab="portfolio">
+          <span>💼</span>
+          <span>庫存盤中監控</span>
+        </button>
+        <button class="terminal-tab-btn" data-tab="planner">
+          <span>🎯</span>
+          <span>交易計畫與風控</span>
+        </button>
+        <button class="terminal-tab-btn" data-tab="news">
+          <span>📰</span>
+          <span>重大訊息雷達</span>
+        </button>
+        <button class="terminal-tab-btn" data-tab="settings">
+          <span>⚙️</span>
+          <span>系統設定</span>
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <!-- Main Workspace Container -->
+  <main class="main-content-wrapper">
+    
+    <!-- Tab 1: Rankings View -->
+    <section class="tab-view active" id="tab-ranking">
+      <!-- Injected via JavaScript -->
+    </section>
+
+    <!-- Tab 2: Portfolio Intraday Monitor View -->
+    <section class="tab-view" id="tab-portfolio">
+      <!-- Injected via JavaScript -->
+    </section>
+
+    <!-- Tab 3: Trade Planner & Risk Calculator View -->
+    <section class="tab-view" id="tab-planner">
+      <!-- Injected via JavaScript -->
+    </section>
+
+    <!-- Tab 4: News & Sentiment View -->
+    <section class="tab-view" id="tab-news">
+      <!-- Injected via JavaScript -->
+    </section>
+
+    <!-- Tab 5: Settings View -->
+    <section class="tab-view" id="tab-settings">
+      <!-- Injected via JavaScript -->
+    </section>
+
+  <!-- Portfolio Position Add / Edit Modal -->
+  <div class="modal-overlay" id="modal-portfolio-pos">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-portfolio-title">➕ 新增庫存部位監控</h3>
+        <button class="modal-close-btn" id="modal-portfolio-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-portfolio-pos">
+          <input type="hidden" id="pos-edit-id" value="">
+          
+          <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label class="form-label" for="pos-select-symbol">🎯 選擇期貨標的</label>
+              <select class="form-select" id="pos-select-symbol">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pos-input-month">📅 合約月份</label>
+              <input type="text" class="form-control" id="pos-input-month" placeholder="202610 (近月)">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">⚖️ 交易方向</label>
+            <div style="display:flex; gap:10px;">
+              <button type="button" class="btn btn-direction active" id="pos-dir-long" data-dir="LONG" style="flex:1;">
+                🟢 多單 (買進)
+              </button>
+              <button type="button" class="btn btn-direction" id="pos-dir-short" data-dir="SHORT" style="flex:1;">
+                🔴 空單 (賣出)
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                <label class="form-label" style="margin-bottom:0;" for="pos-input-entry">進場均價 (NT$)</label>
+                <button type="button" class="btn-link-action" id="btn-fill-live-price">填入現價</button>
+              </div>
+              <input type="number" step="any" class="form-control" id="pos-input-entry" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pos-input-contracts">持倉口數 (口)</label>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-pos-qty-minus" style="padding:4px 12px; font-size:1rem;">-</button>
+                <input type="number" min="1" max="100" class="form-control" id="pos-input-contracts" value="1" style="text-align:center;" required>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-pos-qty-plus" style="padding:4px 12px; font-size:1rem;">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+              <label class="form-label" style="margin-bottom:0;" for="pos-input-stoploss">停損點位 (NT$)</label>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn-link-action" id="btn-calc-atr-stop">1.5x ATR 停損</button>
+                <button type="button" class="btn-link-action" id="btn-calc-2pct-stop">2% 停損</button>
+              </div>
+            </div>
+            <input type="number" step="any" class="form-control" id="pos-input-stoploss" required>
+          </div>
+
+          <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label class="form-label" for="pos-input-1r">1R 目標 (NT$)</label>
+              <input type="number" step="any" class="form-control" id="pos-input-1r">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pos-input-2r">2R 目標 (NT$)</label>
+              <input type="number" step="any" class="form-control" id="pos-input-2r">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pos-input-3r">3R 目標 (NT$)</label>
+              <input type="number" step="any" class="form-control" id="pos-input-3r">
+            </div>
+          </div>
+
+          <!-- Risk & Margin Live Summary Box -->
+          <div class="pos-risk-preview-box" id="pos-risk-preview-box">
+            <!-- Dynamic calculation preview -->
+          </div>
+
+          <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button type="button" class="btn btn-secondary" id="modal-portfolio-cancel">取消</button>
+            <button type="submit" class="btn btn-primary" id="modal-portfolio-save">💾 儲存部位並開始監控</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Terminal Analytics Engine -->
+  <script src="dashboard.js"></script>
+</body>
+</html>
