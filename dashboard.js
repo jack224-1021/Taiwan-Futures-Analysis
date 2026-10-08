@@ -1323,11 +1323,19 @@ class StockFuturesTerminal {
   init() {
     this.bindEvents();
     this.setupPortfolioModal();
-    // 立即以最快速度抓取所有持倉與熱門標的之真實 Yahoo/TWSE 行情
+    this.render(); // 立即以最快速度初次渲染畫面，確保首屏 0 延遲秒開
     this.refreshLiveQuotesForActiveSymbols();
     this.fetchDataFromBackend();
     this.startDataPolling();
     this.startLiveTickEngine();
+  }
+
+  switchTab(tab) {
+    if (!tab) return;
+    this.activeTab = tab;
+    document.querySelectorAll('.terminal-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-view').forEach(v => v.classList.toggle('active', v.id === `tab-${tab}`));
+    this.render();
   }
 
   bindEvents() {
@@ -2109,14 +2117,39 @@ class StockFuturesTerminal {
   }
 
   bindRankingEvents() {
+    // 多方 / 空方榜切換按鈕
+    const modeBullBtn = document.getElementById('btn-mode-bull');
+    const modeBearBtn = document.getElementById('btn-mode-bear');
+    if (modeBullBtn) {
+      modeBullBtn.addEventListener('click', () => {
+        this.currentMode = 'BULL';
+        this.render();
+        this.showToast('📈 已切換為【多方強勢榜】排名', 'info');
+      });
+    }
+    if (modeBearBtn) {
+      modeBearBtn.addEventListener('click', () => {
+        this.currentMode = 'BEAR';
+        this.render();
+        this.showToast('📉 已切換為【空方弱勢榜】排名', 'info');
+      });
+    }
+
+    // 重新整理按鈕
+    const refreshBtn = document.getElementById('btn-manual-refresh');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        this.refreshLiveQuotesForActiveSymbols();
+        this.fetchDataFromBackend();
+        this.showToast('⚡ 正在從 API / 資料庫擷取最新即時行情與評分...', 'info');
+      });
+    }
+
     document.querySelectorAll('.btn-rank-to-plan').forEach(btn => {
       btn.addEventListener('click', () => {
         const symbol = btn.dataset.symbol;
         this.selectedSymbol = symbol;
-        this.activeTab = 'planner';
-        document.querySelectorAll('.terminal-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'planner'));
-        document.querySelectorAll('.tab-view').forEach(v => v.classList.toggle('active', v.id === 'tab-planner'));
-        this.render();
+        this.switchTab('planner');
       });
     });
 
@@ -3500,23 +3533,78 @@ class StockFuturesTerminal {
   }
 }
 
-// Global Delegation Fallback (保證在任何頁面狀態與動態渲染下點擊皆能 100% 觸發彈窗)
+// Global Event Delegation (全域代理監聽，確保任何動態按鈕 100% 響應)
 document.addEventListener('click', (e) => {
+  if (!window.stockTerminal) return;
+
+  // 1. Tab 切換
+  const tabBtn = e.target.closest('.terminal-tab-btn');
+  if (tabBtn) {
+    const tab = tabBtn.dataset.tab;
+    if (tab) window.stockTerminal.switchTab(tab);
+    return;
+  }
+
+  // 2. 多空榜單切換
+  const bullBtn = e.target.closest('#btn-mode-bull');
+  if (bullBtn) {
+    window.stockTerminal.currentMode = 'BULL';
+    window.stockTerminal.render();
+    window.stockTerminal.showToast('📈 已切換為【多方強勢榜】排名', 'info');
+    return;
+  }
+  const bearBtn = e.target.closest('#btn-mode-bear');
+  if (bearBtn) {
+    window.stockTerminal.currentMode = 'BEAR';
+    window.stockTerminal.render();
+    window.stockTerminal.showToast('📉 已切換為【空方弱勢榜】排名', 'info');
+    return;
+  }
+
+  // 3. 立即刷新
+  const refreshBtn = e.target.closest('#btn-manual-refresh');
+  if (refreshBtn) {
+    window.stockTerminal.refreshLiveQuotesForActiveSymbols();
+    window.stockTerminal.fetchDataFromBackend();
+    window.stockTerminal.showToast('⚡ 正在從 API / 資料庫擷取最新即時行情與評分...', 'info');
+    return;
+  }
+
+  // 4. 新增部位按鈕
   const addBtn = e.target.closest('#btn-open-add-pos-modal, #btn-empty-add-pos, .btn-rank-to-pos');
-  if (addBtn && window.stockTerminal) {
+  if (addBtn) {
     e.preventDefault();
     const sym = addBtn.dataset.symbol || null;
     window.stockTerminal.openPortfolioModal(null, sym);
+    return;
   }
 
+  // 5. 編輯部位按鈕
   const editBtn = e.target.closest('.btn-pos-edit');
-  if (editBtn && window.stockTerminal) {
+  if (editBtn) {
     e.preventDefault();
     const posId = editBtn.dataset.id;
     const targetPos = window.stockTerminal.portfolio.find(p => p.id === posId);
     if (targetPos) {
       window.stockTerminal.openPortfolioModal(targetPos);
     }
+    return;
+  }
+
+  // 6. 前往計畫按鈕
+  const planBtn = e.target.closest('.btn-rank-to-plan');
+  if (planBtn) {
+    const sym = planBtn.dataset.symbol;
+    if (sym) window.stockTerminal.selectedSymbol = sym;
+    window.stockTerminal.switchTab('planner');
+    return;
+  }
+
+  // 7. 空狀態前往總榜按鈕
+  const goRankBtn = e.target.closest('#btn-empty-go-ranking');
+  if (goRankBtn) {
+    window.stockTerminal.switchTab('ranking');
+    return;
   }
 });
 
