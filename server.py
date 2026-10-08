@@ -115,7 +115,11 @@ class MarketDataService:
         settlement = get_settlement_info()
         daily_oi = self.taifex_provider.fetch_daily_oi_report()
 
-        symbols = ["CDF", "JFF", "DHF", "GDF", "JGF", "DVF", "CZF", "QAF", "PAF"]
+        symbols = [
+            "CDF", "DHF", "DVF", "GDF", "GBF", "JFF", "JGF", "CCF", 
+            "CPF", "CZF", "DAF", "DBF", "QAF", "PAF", "NVF", "DLF", 
+            "IKF", "RSF", "RTF", "SWF", "SXF", "SYF", "PGF"
+        ]
         contract_codes = [f"{s}R1" for s in symbols]
 
         if self.provider:
@@ -127,15 +131,24 @@ class MarketDataService:
         results = []
 
         tech_meta = {
-            "CDF": {"sector": "半導體", "rsRating": 98, "ma5": 1030.0, "ma10": 1015.0, "ma20": 995.0, "ma60": 950.0, "vwap": 1042.5, "atr14": 24.5, "rsi14": 68.4, "adx14": 32.8, "macdHist": 6.8, "volRatio": 1.82},
-            "JFF": {"sector": "AI散熱", "rsRating": 96, "ma5": 660.0, "ma10": 642.0, "ma20": 620.0, "ma60": 580.0, "vwap": 681.0, "atr14": 26.0, "rsi14": 74.2, "adx14": 36.5, "macdHist": 8.5, "volRatio": 2.35},
-            "DHF": {"sector": "AI代工", "rsRating": 91, "ma5": 218.0, "ma10": 215.0, "ma20": 208.0, "ma60": 195.0, "vwap": 221.8, "atr14": 6.2, "rsi14": 64.5, "adx14": 28.4, "macdHist": 2.1, "volRatio": 1.58},
-            "GDF": {"sector": "AI伺服器", "rsRating": 89, "ma5": 305.0, "ma10": 300.0, "ma20": 290.0, "ma60": 278.0, "vwap": 311.5, "atr14": 9.8, "rsi14": 66.8, "adx14": 29.2, "macdHist": 3.4, "volRatio": 1.65},
-            "JGF": {"sector": "AI水冷", "rsRating": 94, "ma5": 760.0, "ma10": 740.0, "ma20": 710.0, "ma60": 660.0, "vwap": 788.0, "atr14": 31.0, "rsi14": 72.1, "adx14": 34.2, "macdHist": 11.2, "volRatio": 2.10},
-            "DVF": {"sector": "IC設計", "rsRating": 92, "ma5": 1260.0, "ma10": 1240.0, "ma20": 1210.0, "ma60": 1180.0, "vwap": 1282.0, "atr14": 38.0, "rsi14": 67.5, "adx14": 30.5, "macdHist": 7.2, "volRatio": 1.72},
-            "CZF": {"sector": "航運", "rsRating": 78, "ma5": 196.0, "ma10": 194.0, "ma20": 190.0, "ma60": 185.0, "vwap": 198.2, "atr14": 5.5, "rsi14": 58.2, "adx14": 24.1, "macdHist": 1.2, "volRatio": 1.15},
-            "QAF": {"sector": "重電綠能", "rsRating": 62, "ma5": 630.0, "ma10": 638.0, "ma20": 645.0, "ma60": 660.0, "vwap": 622.0, "atr14": 28.0, "rsi14": 43.5, "adx14": 19.4, "macdHist": -4.2, "volRatio": 0.88},
-            "PAF": {"sector": "ASIC設計", "rsRating": 32, "ma5": 2200.0, "ma10": 2280.0, "ma20": 2350.0, "ma60": 2500.0, "vwap": 2145.0, "atr14": 85.0, "rsi14": 36.2, "adx14": 29.8, "macdHist": -18.5, "volRatio": 1.45}
+            "CDF": {"sector": "半導體", "rsRating": 98, "ma5": 2550.0, "ma10": 2500.0, "ma20": 2420.0, "ma60": 2300.0, "vwap": 2562.5, "atr14": 45.0, "rsi14": 68.4, "adx14": 32.8, "macdHist": 6.8, "volRatio": 1.82},
+            "DHF": {"sector": "AI代工", "rsRating": 91, "ma5": 248.0, "ma10": 245.0, "ma20": 238.0, "ma60": 220.0, "vwap": 250.8, "atr14": 6.2, "rsi14": 64.5, "adx14": 28.4, "macdHist": 2.1, "volRatio": 1.58},
+            "DVF": {"sector": "IC設計", "rsRating": 92, "ma5": 4750.0, "ma10": 4680.0, "ma20": 4550.0, "ma60": 4350.0, "vwap": 4780.0, "atr14": 95.0, "rsi14": 67.5, "adx14": 30.5, "macdHist": 7.2, "volRatio": 1.72},
+            "GDF": {"sector": "AI伺服器", "rsRating": 89, "ma5": 320.0, "ma10": 315.0, "ma20": 305.0, "ma60": 290.0, "vwap": 326.5, "atr14": 9.8, "rsi14": 66.8, "adx14": 29.2, "macdHist": 3.4, "volRatio": 1.65},
+            "GBF": {"sector": "AI代工", "rsRating": 90, "ma5": 182.0, "ma10": 178.0, "ma20": 172.0, "ma60": 160.0, "vwap": 185.0, "atr14": 5.2, "rsi14": 66.2, "adx14": 27.5, "macdHist": 2.8, "volRatio": 1.75},
+            "JFF": {"sector": "AI散熱", "rsRating": 96, "ma5": 3400.0, "ma10": 3320.0, "ma20": 3180.0, "ma60": 2950.0, "vwap": 3450.0, "atr14": 85.0, "rsi14": 74.2, "adx14": 36.5, "macdHist": 8.5, "volRatio": 2.35},
+            "JGF": {"sector": "AI水冷", "rsRating": 94, "ma5": 1480.0, "ma10": 1420.0, "ma20": 1350.0, "ma60": 1250.0, "vwap": 1520.0, "atr14": 42.0, "rsi14": 72.1, "adx14": 34.2, "macdHist": 11.2, "volRatio": 2.10},
+            "CCF": {"sector": "晶圓代工", "rsRating": 75, "ma5": 145.0, "ma10": 144.0, "ma20": 140.0, "ma60": 135.0, "vwap": 147.0, "atr14": 3.8, "rsi14": 56.4, "adx14": 21.0, "macdHist": 1.0, "volRatio": 1.20},
+            "CPF": {"sector": "電源供應", "rsRating": 88, "ma5": 395.0, "ma10": 390.0, "ma20": 380.0, "ma60": 365.0, "vwap": 400.0, "atr14": 11.0, "rsi14": 63.5, "adx14": 26.0, "macdHist": 3.0, "volRatio": 1.45},
+            "CZF": {"sector": "航運", "rsRating": 78, "ma5": 230.0, "ma10": 228.0, "ma20": 222.0, "ma60": 215.0, "vwap": 231.8, "atr14": 5.5, "rsi14": 58.2, "adx14": 24.1, "macdHist": 1.2, "volRatio": 1.15},
+            "QAF": {"sector": "重電綠能", "rsRating": 62, "ma5": 690.0, "ma10": 685.0, "ma20": 670.0, "ma60": 660.0, "vwap": 692.0, "atr14": 28.0, "rsi14": 43.5, "adx14": 19.4, "macdHist": -4.2, "volRatio": 0.88},
+            "PAF": {"sector": "ASIC設計", "rsRating": 32, "ma5": 4250.0, "ma10": 4180.0, "ma20": 4100.0, "ma60": 4000.0, "vwap": 4300.0, "atr14": 95.0, "rsi14": 36.2, "adx14": 29.8, "macdHist": -18.5, "volRatio": 1.45},
+            "RSF": {"sector": "光通訊CPO", "rsRating": 97, "ma5": 1700.0, "ma10": 1650.0, "ma20": 1550.0, "ma60": 1400.0, "vwap": 1720.0, "atr14": 65.0, "rsi14": 78.0, "adx14": 38.0, "macdHist": 14.5, "volRatio": 2.50},
+            "RTF": {"sector": "光通訊CPO", "rsRating": 95, "ma5": 515.0, "ma10": 500.0, "ma20": 475.0, "ma60": 430.0, "vwap": 520.0, "atr14": 22.0, "rsi14": 75.0, "adx14": 35.0, "macdHist": 9.2, "volRatio": 2.20},
+            "SWF": {"sector": "CoWoS設備", "rsRating": 96, "ma5": 2400.0, "ma10": 2350.0, "ma20": 2250.0, "ma60": 2100.0, "vwap": 2420.0, "atr14": 75.0, "rsi14": 76.5, "adx14": 36.0, "macdHist": 12.0, "volRatio": 2.10},
+            "SXF": {"sector": "CoWoS設備", "rsRating": 93, "ma5": 730.0, "ma10": 715.0, "ma20": 685.0, "ma60": 640.0, "vwap": 738.0, "atr14": 26.0, "rsi14": 71.0, "adx14": 32.0, "macdHist": 7.5, "volRatio": 1.90},
+            "SYF": {"sector": "CoWoS設備", "rsRating": 95, "ma5": 1520.0, "ma10": 1480.0, "ma20": 1400.0, "ma60": 1300.0, "vwap": 1545.0, "atr14": 48.0, "rsi14": 74.0, "adx14": 34.0, "macdHist": 10.5, "volRatio": 2.05},
+            "PGF": {"sector": "AI伺服器", "rsRating": 91, "ma5": 2200.0, "ma10": 2150.0, "ma20": 2080.0, "ma60": 1950.0, "vwap": 2215.0, "atr14": 60.0, "rsi14": 67.0, "adx14": 29.0, "macdHist": 5.8, "volRatio": 1.60}
         }
 
         for sym in symbols:

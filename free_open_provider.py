@@ -169,19 +169,20 @@ class FreeOpenDataProvider:
         轉換為個股期貨之 Snapshot 報價模型
         """
         if target_symbols is None:
-            target_symbols = ["CDF", "JFF", "DHF", "GDF", "JGF", "DVF", "CZF", "QAF", "PAF"]
+            target_symbols = [
+                "CDF", "DHF", "DVF", "GDF", "GBF", "JFF", "JGF", "CCF", 
+                "CPF", "CZF", "DAF", "DBF", "QAF", "PAF", "NVF", "DLF", 
+                "IKF", "RSF", "RTF", "SWF", "SXF", "SYF", "PGF"
+            ]
 
         # 期貨代碼與現貨股票代號對應
         symbol_to_stock = {
-            "CDF": "2330",
-            "JFF": "3017",
-            "DHF": "2317",
-            "GDF": "2382",
-            "JGF": "3324",
-            "DVF": "2454",
-            "CZF": "2603",
-            "QAF": "1519",
-            "PAF": "3661"
+            "CDF": "2330", "DHF": "2317", "DVF": "2454", "GDF": "2382",
+            "GBF": "3231", "JFF": "3017", "JGF": "3324", "CCF": "2303",
+            "CPF": "2308", "CZF": "2603", "DAF": "2609", "DBF": "2615",
+            "QAF": "1519", "PAF": "3661", "NVF": "3443", "DLF": "2376",
+            "IKF": "3037", "RSF": "6442", "RTF": "3450", "SWF": "3131",
+            "SXF": "3583", "SYF": "6187", "PGF": "6669"
         }
 
         # 取得現貨即時行情
@@ -204,8 +205,12 @@ class FreeOpenDataProvider:
             else:
                 # 備用安全預設值 (收盤參考價)
                 fallback_prices = {
-                    "CDF": 1045.0, "JFF": 688.0, "DHF": 222.5, "GDF": 313.5,
-                    "JGF": 795.0, "DVF": 1290.0, "CZF": 199.0, "QAF": 618.0, "PAF": 2120.0
+                    "CDF": 2570.0, "DHF": 251.0, "DVF": 4800.0, "GDF": 328.0,
+                    "GBF": 185.5, "JFF": 3470.0, "JGF": 1540.0, "CCF": 147.5,
+                    "CPF": 402.0, "CZF": 231.0, "DAF": 74.2, "DBF": 92.6,
+                    "QAF": 693.0, "PAF": 4325.0, "NVF": 1285.0, "DLF": 285.0,
+                    "IKF": 172.0, "RSF": 1730.0, "RTF": 524.0, "SWF": 2430.0,
+                    "SXF": 741.0, "SYF": 1555.0, "PGF": 2225.0
                 }
                 price = fallback_prices.get(sym, 100.0)
                 chg = 0.0
