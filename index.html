@@ -107,13 +107,46 @@
       <div class="modal-body">
         <form id="form-portfolio-pos">
           <input type="hidden" id="pos-edit-id" value="">
-          
+          <input type="hidden" id="pos-hidden-symbol" value="CDF">
+          <input type="hidden" id="pos-hidden-underlying" value="2330">
+          <input type="hidden" id="pos-hidden-name" value="台積電期">
+
+          <!-- Dynamic Search & Custom Symbol Input -->
+          <div class="form-group" style="position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+              <label class="form-label" style="margin-bottom:0;" for="pos-input-symbol-search">
+                🎯 輸入期貨名稱或股票代號 (支援全市場搜尋與自訂)
+              </label>
+              <span style="font-size:0.75rem; color:var(--neon-cyan);">支援名稱/代碼即時檢索</span>
+            </div>
+            
+            <div style="position:relative;">
+              <input type="text" class="form-control" id="pos-input-symbol-search" 
+                     placeholder="請輸入名稱、股票代號或期貨代碼 (如: 緯創、3231、聯電、2303、DVF...)" 
+                     autocomplete="off" required>
+              <div class="symbol-search-dropdown" id="symbol-search-dropdown" style="display:none;"></div>
+            </div>
+
+            <!-- Quick Hot Symbol Badges -->
+            <div class="quick-symbol-bar" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+              <span style="font-size:0.72rem; color:var(--text-muted); align-self:center;">熱門快選：</span>
+              <button type="button" class="btn-symbol-tag" data-sym="CDF" data-underlying="2330" data-name="台積電期">台積電 2330</button>
+              <button type="button" class="btn-symbol-tag" data-sym="DHF" data-underlying="2317" data-name="鴻海期">鴻海 2317</button>
+              <button type="button" class="btn-symbol-tag" data-sym="DVF" data-underlying="2454" data-name="聯發科期">聯發科 2454</button>
+              <button type="button" class="btn-symbol-tag" data-sym="GDF" data-underlying="2382" data-name="廣達期">廣達 2382</button>
+              <button type="button" class="btn-symbol-tag" data-sym="GBF" data-underlying="3231" data-name="緯創期">緯創 3231</button>
+              <button type="button" class="btn-symbol-tag" data-sym="JFF" data-underlying="3017" data-name="奇鋐期">奇鋐 3017</button>
+              <button type="button" class="btn-symbol-tag" data-sym="JGF" data-underlying="3324" data-name="雙鴻期">雙鴻 3324</button>
+              <button type="button" class="btn-symbol-tag" data-sym="CCF" data-underlying="2303" data-name="聯電期">聯電 2303</button>
+              <button type="button" class="btn-symbol-tag" data-sym="CZF" data-underlying="2603" data-name="長榮期">長榮 2603</button>
+              <button type="button" class="btn-symbol-tag" data-sym="QAF" data-underlying="1519" data-name="華城期">華城 1519</button>
+            </div>
+          </div>
+
           <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group">
-              <label class="form-label" for="pos-select-symbol">🎯 選擇期貨標的</label>
-              <select class="form-select" id="pos-select-symbol">
-                <!-- Dynamically populated -->
-              </select>
+              <label class="form-label" for="pos-input-display-name">標的確認名稱</label>
+              <input type="text" class="form-control" id="pos-input-display-name" placeholder="如: 緯創期 (GBF / 3231)" required>
             </div>
             <div class="form-group">
               <label class="form-label" for="pos-input-month">📅 合約月份</label>

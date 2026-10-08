@@ -15,6 +15,95 @@
 // ==============================================================================
 const STORAGE_PORTFOLIO_KEY = 'BANBAN_FUTURES_PORTFOLIO_V2';
 
+// 期交所全市場熱門個股期貨標的資料庫 (支援名稱、股票代號、期貨代碼即時檢索)
+const TAIFEX_FUTURES_DATABASE = [
+  { symbol: 'CDF', underlying: '2330', name: '台積電期', stockName: '台積電', sector: '半導體', shares: 2000, marginRate: 0.135, price: 2550.0 },
+  { symbol: 'DHF', underlying: '2317', name: '鴻海期', stockName: '鴻海', sector: 'AI代工', shares: 2000, marginRate: 0.135, price: 251.0 },
+  { symbol: 'DVF', underlying: '2454', name: '聯發科期', stockName: '聯發科', sector: 'IC設計', shares: 2000, marginRate: 0.135, price: 4800.0 },
+  { symbol: 'GDF', underlying: '2382', name: '廣達期', stockName: '廣達', sector: 'AI伺服器', shares: 2000, marginRate: 0.135, price: 328.0 },
+  { symbol: 'GBF', underlying: '3231', name: '緯創期', stockName: '緯創', sector: 'AI代工', shares: 2000, marginRate: 0.135, price: 118.5 },
+  { symbol: 'JFF', underlying: '3017', name: '奇鋐期', stockName: '奇鋐', sector: 'AI散熱', shares: 2000, marginRate: 0.162, price: 3445.0 },
+  { symbol: 'JGF', underlying: '3324', name: '雙鴻期', stockName: '雙鴻', sector: 'AI水冷', shares: 2000, marginRate: 0.162, price: 1420.0 },
+  { symbol: 'CCF', underlying: '2303', name: '聯電期', stockName: '聯電', sector: '晶圓代工', shares: 2000, marginRate: 0.135, price: 52.8 },
+  { symbol: 'CPF', underlying: '2308', name: '台達電期', stockName: '台達電', sector: '電源供應', shares: 2000, marginRate: 0.135, price: 402.0 },
+  { symbol: 'CZF', underlying: '2603', name: '長榮期', stockName: '長榮', sector: '航運', shares: 2000, marginRate: 0.135, price: 232.5 },
+  { symbol: 'DAF', underlying: '2609', name: '陽明期', stockName: '陽明', sector: '航運', shares: 2000, marginRate: 0.162, price: 74.2 },
+  { symbol: 'DBF', underlying: '2615', name: '萬海期', stockName: '萬海', sector: '航運', shares: 2000, marginRate: 0.162, price: 92.6 },
+  { symbol: 'QAF', underlying: '1519', name: '華城期', stockName: '華城', sector: '重電綠能', shares: 2000, marginRate: 0.2025, price: 694.0 },
+  { symbol: 'PAF', underlying: '3661', name: '世芯-KY期', stockName: '世芯-KY', sector: 'ASIC設計', shares: 2000, marginRate: 0.2025, price: 4165.0 },
+  { symbol: 'NVF', underlying: '3443', name: '創意期', stockName: '創意', sector: 'ASIC設計', shares: 2000, marginRate: 0.162, price: 1285.0 },
+  { symbol: 'OOF', underlying: '3035', name: '智原期', stockName: '智原', sector: 'ASIC設計', shares: 2000, marginRate: 0.162, price: 268.0 },
+  { symbol: 'DLF', underlying: '2376', name: '技嘉期', stockName: '技嘉', sector: '主機板/AI', shares: 2000, marginRate: 0.135, price: 285.0 },
+  { symbol: 'IKF', underlying: '3037', name: '欣興期', stockName: '欣興', sector: 'ABF載板', shares: 2000, marginRate: 0.162, price: 172.0 },
+  { symbol: 'JRF', underlying: '3189', name: '景碩期', stockName: '景碩', sector: 'ABF載板', shares: 2000, marginRate: 0.162, price: 112.5 },
+  { symbol: 'NLF', underlying: '8046', name: '南電期', stockName: '南電', sector: 'ABF載板', shares: 2000, marginRate: 0.162, price: 154.0 },
+  { symbol: 'CFF', underlying: '2357', name: '華碩期', stockName: '華碩', sector: 'PC/AI', shares: 2000, marginRate: 0.135, price: 588.0 },
+  { symbol: 'CNF', underlying: '2356', name: '英業達期', stockName: '英業達', sector: 'AI伺服器', shares: 2000, marginRate: 0.135, price: 51.2 },
+  { symbol: 'DKF', underlying: '2383', name: '台光電期', stockName: '台光電', sector: 'CCL銅箔基板', shares: 2000, marginRate: 0.162, price: 468.0 },
+  { symbol: 'IRF', underlying: '6274', name: '台燿期', stockName: '台燿', sector: 'CCL銅箔基板', shares: 2000, marginRate: 0.162, price: 168.5 },
+  { symbol: 'DDF', underlying: '2327', name: '國巨期', stockName: '國巨', sector: '被動元件', shares: 2000, marginRate: 0.135, price: 620.0 },
+  { symbol: 'DJF', underlying: '3008', name: '大立光期', stockName: '大立光', sector: '光學鏡頭', shares: 2000, marginRate: 0.135, price: 2580.0 },
+  { symbol: 'KCF', underlying: '3406', name: '玉晶光期', stockName: '玉晶光', sector: '光學鏡頭', shares: 2000, marginRate: 0.162, price: 542.0 },
+  { symbol: 'CGF', underlying: '2409', name: '友達期', stockName: '友達', sector: '面板', shares: 2000, marginRate: 0.135, price: 16.8 },
+  { symbol: 'COF', underlying: '3481', name: '群創期', stockName: '群創', sector: '面板', shares: 2000, marginRate: 0.135, price: 15.6 },
+  { symbol: 'DZF', underlying: '2881', name: '富邦金期', stockName: '富邦金', sector: '金融金控', shares: 2000, marginRate: 0.135, price: 91.2 },
+  { symbol: 'EAF', underlying: '2882', name: '國泰金期', stockName: '國泰金', sector: '金融金控', shares: 2000, marginRate: 0.135, price: 68.5 },
+  { symbol: 'ECF', underlying: '2891', name: '中信金期', stockName: '中信金', sector: '金融金控', shares: 2000, marginRate: 0.135, price: 38.4 },
+  { symbol: 'EBF', underlying: '2886', name: '兆豐金期', stockName: '兆豐金', sector: '金融金控', shares: 2000, marginRate: 0.135, price: 41.5 },
+  { symbol: 'CBF', underlying: '2002', name: '中鋼期', stockName: '中鋼', sector: '鋼鐵', shares: 2000, marginRate: 0.135, price: 22.8 },
+  { symbol: 'CAF', underlying: '1301', name: '台塑期', stockName: '台塑', sector: '塑膠石化', shares: 2000, marginRate: 0.135, price: 52.0 },
+  { symbol: 'CG_F', underlying: '1303', name: '南亞期', stockName: '南亞', sector: '塑膠石化', shares: 2000, marginRate: 0.135, price: 44.5 },
+  { symbol: 'LFF', underlying: '1504', name: '東元期', stockName: '東元', sector: '重電', shares: 2000, marginRate: 0.135, price: 55.2 },
+  { symbol: 'LIF', underlying: '1503', name: '士電期', stockName: '士電', sector: '重電綠能', shares: 2000, marginRate: 0.162, price: 228.0 },
+  { symbol: 'LRF', underlying: '1513', name: '中興電期', stockName: '中興電', sector: '重電綠能', shares: 2000, marginRate: 0.162, price: 182.0 },
+  { symbol: 'MBF', underlying: '1514', name: '亞力期', stockName: '亞力', sector: '重電綠能', shares: 2000, marginRate: 0.162, price: 125.0 },
+  { symbol: 'NOF', underlying: '3653', name: '健策期', stockName: '健策', sector: '散熱導線架', shares: 2000, marginRate: 0.162, price: 1280.0 },
+  { symbol: 'OAF', underlying: '3533', name: '嘉澤期', stockName: '嘉澤', sector: '連接器', shares: 2000, marginRate: 0.162, price: 1450.0 },
+  { symbol: 'PGF', underlying: '6669', name: '緯穎期', stockName: '緯穎', sector: 'AI伺服器', shares: 2000, marginRate: 0.135, price: 2480.0 },
+  { symbol: 'PCF', underlying: '5269', name: '祥碩期', stockName: '祥碩', sector: '高速傳輸IC', shares: 2000, marginRate: 0.162, price: 1980.0 },
+  { symbol: 'PXF', underlying: '4966', name: '譜瑞-KY期', stockName: '譜瑞-KY', sector: '高速傳輸IC', shares: 2000, marginRate: 0.162, price: 780.0 },
+  { symbol: 'POF', underlying: '3034', name: '聯詠期', stockName: '聯詠', sector: '驅動IC', shares: 2000, marginRate: 0.135, price: 540.0 },
+  { symbol: 'PWF', underlying: '2379', name: '瑞昱期', stockName: '瑞昱', sector: '網通IC', shares: 2000, marginRate: 0.135, price: 512.0 },
+  { symbol: 'RSF', underlying: '6442', name: '光聖期', stockName: '光聖', sector: '光通訊CPO', shares: 2000, marginRate: 0.2025, price: 435.0 },
+  { symbol: 'RTF', underlying: '3450', name: '聯鈞期', stockName: '聯鈞', sector: '光通訊CPO', shares: 2000, marginRate: 0.2025, price: 238.0 },
+  { symbol: 'RUF', underlying: '4979', name: '華星光期', stockName: '華星光', sector: '光通訊', shares: 2000, marginRate: 0.2025, price: 148.5 },
+  { symbol: 'QUF', underlying: '3163', name: '波若威期', stockName: '波若威', sector: '光通訊', shares: 2000, marginRate: 0.2025, price: 165.0 },
+  { symbol: 'QVF', underlying: '3363', name: '上詮期', stockName: '上詮', sector: '光通訊CPO', shares: 2000, marginRate: 0.2025, price: 215.0 },
+  { symbol: 'RRF', underlying: '3665', name: '貿聯-KY期', stockName: '貿聯-KY', sector: '連接線束', shares: 2000, marginRate: 0.162, price: 472.0 },
+  { symbol: 'RQF', underlying: '8210', name: '勤誠期', stockName: '勤誠', sector: 'AI機殼', shares: 2000, marginRate: 0.162, price: 288.0 },
+  { symbol: 'SOF', underlying: '3013', name: '晟銘電期', stockName: '晟銘電', sector: 'AI機殼水冷', shares: 2000, marginRate: 0.2025, price: 138.0 },
+  { symbol: 'SPF', underlying: '6117', name: '迎廣期', stockName: '迎廣', sector: 'AI機殼', shares: 2000, marginRate: 0.2025, price: 112.0 },
+  { symbol: 'SUF', underlying: '6223', name: '旺矽期', stockName: '旺矽', sector: '探針卡測試', shares: 2000, marginRate: 0.162, price: 792.0 },
+  { symbol: 'SVF', underlying: '6515', name: '穎崴期', stockName: '穎崴', sector: '測試治具', shares: 2000, marginRate: 0.162, price: 1180.0 },
+  { symbol: 'SWF', underlying: '3131', name: '弘塑期', stockName: '弘塑', sector: 'CoWoS設備', shares: 2000, marginRate: 0.2025, price: 1820.0 },
+  { symbol: 'SXF', underlying: '3583', name: '辛耘期', stockName: '辛耘', sector: 'CoWoS設備', shares: 2000, marginRate: 0.2025, price: 425.0 },
+  { symbol: 'SYF', underlying: '6187', name: '萬潤期', stockName: '萬潤', sector: 'CoWoS設備', shares: 2000, marginRate: 0.2025, price: 468.0 },
+  { symbol: 'SZF', underlying: '3680', name: '家登期', stockName: '家登', sector: 'EUV光罩盒', shares: 2000, marginRate: 0.162, price: 540.0 },
+  { symbol: 'TAF', underlying: '1560', name: '中砂期', stockName: '中砂', sector: '鑽石碟', shares: 2000, marginRate: 0.162, price: 345.0 },
+  { symbol: 'TBF', underlying: '8028', name: '昇陽半期', stockName: '昇陽半', sector: '再生晶圓', shares: 2000, marginRate: 0.162, price: 128.0 },
+  { symbol: 'TDF', underlying: '2059', name: '川湖期', stockName: '川湖', sector: '伺服器滑軌', shares: 2000, marginRate: 0.162, price: 1260.0 },
+  { symbol: 'TEF', underlying: '2498', name: '宏達電期', stockName: '宏達電', sector: 'VR元宇宙', shares: 2000, marginRate: 0.162, price: 46.8 },
+  { symbol: 'TFF', underlying: '2388', name: '威盛期', stockName: '威盛', sector: 'IC設計', shares: 2000, marginRate: 0.2025, price: 122.0 },
+  { symbol: 'TGF', underlying: '2368', name: '金像電期', stockName: '金像電', sector: 'AI伺服器PCB', shares: 2000, marginRate: 0.162, price: 232.0 },
+  { symbol: 'THF', underlying: '3044', name: '健鼎期', stockName: '健鼎', sector: '伺服器PCB', shares: 2000, marginRate: 0.135, price: 215.0 },
+  { symbol: 'TIF', underlying: '2313', name: '華通期', stockName: '華通', sector: '衛星/PCB', shares: 2000, marginRate: 0.135, price: 78.5 },
+  { symbol: 'TJF', underlying: '2367', name: '燿華期', stockName: '燿華', sector: 'PCB', shares: 2000, marginRate: 0.162, price: 36.4 },
+  { symbol: 'TKF', underlying: '6213', name: '聯茂期', stockName: '聯茂', sector: 'CCL銅箔基板', shares: 2000, marginRate: 0.162, price: 82.0 },
+  { symbol: 'TLF', underlying: '3706', name: '神達期', stockName: '神達', sector: '伺服器', shares: 2000, marginRate: 0.135, price: 48.2 },
+  { symbol: 'TMF', underlying: '2324', name: '仁寶期', stockName: '仁寶', sector: '筆電代工', shares: 2000, marginRate: 0.135, price: 37.8 },
+  { symbol: 'TNF', underlying: '4938', name: '和碩期', stockName: '和碩', sector: '代工', shares: 2000, marginRate: 0.135, price: 98.2 },
+  { symbol: 'TOF', underlying: '2363', name: '矽統期', stockName: '矽統', sector: 'IC設計', shares: 2000, marginRate: 0.2025, price: 74.5 },
+  { symbol: 'TPF', underlying: '6488', name: '環球晶期', stockName: '環球晶', sector: '矽晶圓', shares: 2000, marginRate: 0.162, price: 480.0 },
+  { symbol: 'TQF', underlying: '5483', name: '中美晶期', stockName: '中美晶', sector: '太陽能/半導體', shares: 2000, marginRate: 0.162, price: 175.0 },
+  { symbol: 'TRF', underlying: '3105', name: '穩懋期', stockName: '穩懋', sector: 'PA砷化鎵', shares: 2000, marginRate: 0.162, price: 132.0 },
+  { symbol: 'TSF', underlying: '2455', name: '全新期', stockName: '全新', sector: 'PA磊晶', shares: 2000, marginRate: 0.162, price: 156.0 },
+  { symbol: 'TTF', underlying: '8086', name: '宏捷科期', stockName: '宏捷科', sector: 'PA代工', shares: 2000, marginRate: 0.162, price: 120.5 },
+  { symbol: 'TUF', underlying: '2408', name: '南亞科期', stockName: '南亞科', sector: 'DRAM記憶體', shares: 2000, marginRate: 0.135, price: 54.0 },
+  { symbol: 'TVF', underlying: '2344', name: '華邦電期', stockName: '華邦電', sector: '記憶體', shares: 2000, marginRate: 0.135, price: 23.5 },
+  { symbol: 'TWF', underlying: '3260', name: '威剛期', stockName: '威剛', sector: '記憶體模組', shares: 2000, marginRate: 0.162, price: 98.0 },
+  { symbol: 'TXF_STK', underlying: '8299', name: '群聯期', stockName: '群聯', sector: 'NAND控制IC', shares: 2000, marginRate: 0.162, price: 580.0 }
+];
+
 // 預設台股個股期貨基本資料庫 (預載最新證交所/期交所真實行情)
 const DEFAULT_FUTURES_UNIVERSE = [
   {
@@ -1528,18 +1617,79 @@ class StockFuturesTerminal {
   }
 
   // ==============================================================================
-  // Portfolio Modal Management (新增 / 編輯庫存部位彈窗)
   // ==============================================================================
+  // Portfolio Modal Management (新增 / 編輯庫存部位彈窗 — 支援全市場代號/名稱搜尋與自訂)
+  // ==============================================================================
+  findFuturesSpec(query) {
+    if (!query) return null;
+    const q = String(query).trim().toUpperCase();
+    const cleanQ = q.replace(/期$/, '');
+
+    // 1. Exact match in TAIFEX Database
+    let found = TAIFEX_FUTURES_DATABASE.find(item => 
+      item.symbol.toUpperCase() === q ||
+      item.underlying === q ||
+      item.name === q ||
+      item.name === `${q}期` ||
+      item.stockName === q ||
+      item.stockName === cleanQ
+    );
+    if (found) return found;
+
+    // 2. Exact match in current Market Data
+    const inMarket = this.marketData.find(m => 
+      m.symbol.toUpperCase() === q || 
+      m.underlying === q || 
+      m.name === q || 
+      m.name === `${q}期`
+    );
+    if (inMarket) {
+      return {
+        symbol: inMarket.symbol,
+        underlying: inMarket.underlying || '',
+        name: inMarket.name,
+        stockName: inMarket.name.replace(/期$/, ''),
+        sector: inMarket.sector || '一般',
+        shares: inMarket.sharesPerContract || 2000,
+        marginRate: inMarket.marginRate || 0.135,
+        price: inMarket.price
+      };
+    }
+
+    // 3. Partial match in TAIFEX Database
+    found = TAIFEX_FUTURES_DATABASE.find(item => 
+      item.symbol.toUpperCase().includes(q) ||
+      (item.underlying && item.underlying.includes(q)) ||
+      item.name.includes(cleanQ) ||
+      item.stockName.includes(cleanQ)
+    );
+    if (found) return found;
+
+    // 4. Custom fallback specification
+    const customCode = q.match(/[A-Z0-9]+/)?.[0] || 'CUSTOM';
+    return {
+      symbol: customCode,
+      underlying: /^\d+$/.test(q) ? q : '',
+      name: q.endsWith('期') ? q : `${q}期`,
+      stockName: cleanQ,
+      sector: '自訂標的',
+      shares: 2000,
+      marginRate: 0.135,
+      price: null
+    };
+  }
+
   setupPortfolioModal() {
     const modalEl = document.getElementById('modal-portfolio-pos');
     if (!modalEl) return;
 
-    // 關閉彈窗按鈕與遮罩點擊
     const closeBtn = document.getElementById('modal-portfolio-close');
     const cancelBtn = document.getElementById('modal-portfolio-cancel');
     const closeModal = () => {
       modalEl.classList.remove('open');
       modalEl.style.display = 'none';
+      const dropdown = document.getElementById('symbol-search-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
     };
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
@@ -1548,6 +1698,97 @@ class StockFuturesTerminal {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && modalEl.classList.contains('open')) closeModal();
+    });
+
+    // 搜尋輸入框與下拉即時匹配
+    const searchInput = document.getElementById('pos-input-symbol-search');
+    const dropdownEl = document.getElementById('symbol-search-dropdown');
+
+    const renderSearchResults = (query) => {
+      if (!dropdownEl) return;
+      const q = String(query || '').trim().toLowerCase();
+      const cleanQ = q.replace(/期$/, '');
+
+      let matches = [];
+      if (!q) {
+        // 空白時顯示預設熱門標的
+        matches = TAIFEX_FUTURES_DATABASE.slice(0, 10);
+      } else {
+        matches = TAIFEX_FUTURES_DATABASE.filter(item => 
+          item.symbol.toLowerCase().includes(q) ||
+          (item.underlying && item.underlying.includes(q)) ||
+          item.name.toLowerCase().includes(cleanQ) ||
+          item.stockName.toLowerCase().includes(cleanQ) ||
+          (item.sector && item.sector.toLowerCase().includes(cleanQ))
+        );
+      }
+
+      if (matches.length === 0) {
+        dropdownEl.innerHTML = `
+          <div style="padding:12px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+            未找到完全相符之內建期貨，可直接輸入 <b>${query}</b> 作為自訂標的！
+          </div>
+        `;
+        dropdownEl.style.display = 'block';
+        return;
+      }
+
+      dropdownEl.innerHTML = matches.map(item => `
+        <div class="symbol-search-item" data-sym="${item.symbol}" data-underlying="${item.underlying}" data-name="${item.name}" data-price="${item.price || ''}">
+          <div>
+            <b>${item.name} (${item.symbol})</b>
+            <small style="margin-left:6px; color:var(--text-muted);">${item.underlying ? item.underlying + ' | ' : ''}${item.sector}</small>
+          </div>
+          <div style="text-align:right;">
+            <b style="color:var(--neon-cyan);">${item.price ? 'NT$ ' + formatPrice(item.price) : ''}</b>
+          </div>
+        </div>
+      `).join('');
+      dropdownEl.style.display = 'block';
+    };
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        renderSearchResults(e.target.value);
+        this.selectSymbolItem(this.findFuturesSpec(e.target.value), false);
+      });
+
+      searchInput.addEventListener('focus', (e) => {
+        renderSearchResults(e.target.value);
+      });
+    }
+
+    // 點擊下拉搜尋結果
+    if (dropdownEl) {
+      dropdownEl.addEventListener('click', (e) => {
+        const itemEl = e.target.closest('.symbol-search-item');
+        if (!itemEl) return;
+        const sym = itemEl.dataset.sym;
+        const spec = this.findFuturesSpec(sym);
+        if (spec) {
+          this.selectSymbolItem(spec, true);
+        }
+        dropdownEl.style.display = 'none';
+      });
+    }
+
+    // 點擊外圍關閉下拉清單
+    document.addEventListener('click', (e) => {
+      if (dropdownEl && !dropdownEl.contains(e.target) && e.target !== searchInput) {
+        dropdownEl.style.display = 'none';
+      }
+    });
+
+    // 熱門快選按鈕點擊
+    document.querySelectorAll('.btn-symbol-tag').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sym = btn.dataset.sym;
+        const spec = this.findFuturesSpec(sym);
+        if (spec) {
+          this.selectSymbolItem(spec, true);
+          if (dropdownEl) dropdownEl.style.display = 'none';
+        }
+      });
     });
 
     // 交易方向多空切換按鈕
@@ -1565,22 +1806,6 @@ class StockFuturesTerminal {
         btnDirLong.classList.remove('active');
         this.recalcModalStopLoss('SHORT');
         this.updateModalRiskPreview();
-      });
-    }
-
-    // 標的切換下拉選單
-    const symbolSelect = document.getElementById('pos-select-symbol');
-    if (symbolSelect) {
-      symbolSelect.addEventListener('change', () => {
-        const sym = symbolSelect.value;
-        const live = this.marketData.find(m => m.symbol === sym);
-        if (live) {
-          const entryInput = document.getElementById('pos-input-entry');
-          if (entryInput) entryInput.value = live.price;
-          const dir = btnDirLong && btnDirLong.classList.contains('active') ? 'LONG' : 'SHORT';
-          this.recalcModalStopLoss(dir);
-          this.updateModalRiskPreview();
-        }
       });
     }
 
@@ -1609,15 +1834,20 @@ class StockFuturesTerminal {
 
     // 填入現價快捷鍵
     const btnFillLive = document.getElementById('btn-fill-live-price');
-    if (btnFillLive && symbolSelect) {
+    if (btnFillLive) {
       btnFillLive.addEventListener('click', () => {
-        const live = this.marketData.find(m => m.symbol === symbolSelect.value);
-        if (live) {
+        const hiddenSym = document.getElementById('pos-hidden-symbol')?.value || 'CDF';
+        const spec = this.findFuturesSpec(hiddenSym);
+        const live = this.marketData.find(m => m.symbol === hiddenSym) || spec;
+        if (live && live.price) {
           const entryInput = document.getElementById('pos-input-entry');
           if (entryInput) entryInput.value = live.price;
           const dir = btnDirLong && btnDirLong.classList.contains('active') ? 'LONG' : 'SHORT';
           this.recalcModalStopLoss(dir);
           this.updateModalRiskPreview();
+          this.showToast(`✓ 已自動填入 ${spec.name || hiddenSym} 最新現價 NT$ ${formatPrice(live.price)}`, 'info');
+        } else {
+          this.showToast('ℹ️ 請在「進場均價」欄位手動輸入此標的的成交價', 'info');
         }
       });
     }
@@ -1643,7 +1873,7 @@ class StockFuturesTerminal {
     }
 
     // 所有數值輸入欄位連動試算
-    ['pos-input-entry', 'pos-input-contracts', 'pos-input-stoploss', 'pos-input-1r', 'pos-input-2r', 'pos-input-3r'].forEach(id => {
+    ['pos-input-entry', 'pos-input-contracts', 'pos-input-stoploss', 'pos-input-1r', 'pos-input-2r', 'pos-input-3r', 'pos-input-display-name'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', () => this.updateModalRiskPreview());
     });
@@ -1654,17 +1884,61 @@ class StockFuturesTerminal {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         const editId = document.getElementById('pos-edit-id')?.value;
-        const symbol = document.getElementById('pos-select-symbol')?.value || 'CDF';
-        const live = this.marketData.find(m => m.symbol === symbol) || { name: `${symbol}期`, atr14: 20, price: 100 };
+        const symbol = (document.getElementById('pos-hidden-symbol')?.value || 'CDF').toUpperCase();
+        const underlying = document.getElementById('pos-hidden-underlying')?.value || '';
+        const rawDisplayName = document.getElementById('pos-input-display-name')?.value || document.getElementById('pos-input-symbol-search')?.value || `${symbol}期`;
+        const name = rawDisplayName.includes('(') ? rawDisplayName.split('(')[0].trim() : rawDisplayName.trim();
+
+        const spec = this.findFuturesSpec(symbol) || { shares: 2000, marginRate: 0.135 };
         const contractMonth = document.getElementById('pos-input-month')?.value || `${this.settlementInfo.contractMonth} (近月)`;
         const direction = btnDirLong && btnDirLong.classList.contains('active') ? 'LONG' : 'SHORT';
-        const entryPrice = parseFloat(document.getElementById('pos-input-entry')?.value) || live.price;
+        const entryPrice = parseFloat(document.getElementById('pos-input-entry')?.value) || (spec.price || 100);
         const contracts = parseInt(document.getElementById('pos-input-contracts')?.value) || 1;
         const stopLoss = parseFloat(document.getElementById('pos-input-stoploss')?.value) || roundToTick(direction === 'LONG' ? entryPrice * 0.95 : entryPrice * 1.05);
         const riskPerShare = Math.abs(entryPrice - stopLoss);
         const target1R = parseFloat(document.getElementById('pos-input-1r')?.value) || roundToTick(direction === 'LONG' ? entryPrice + riskPerShare : entryPrice - riskPerShare);
         const target2R = parseFloat(document.getElementById('pos-input-2r')?.value) || roundToTick(direction === 'LONG' ? entryPrice + riskPerShare * 2 : entryPrice - riskPerShare * 2);
         const target3R = parseFloat(document.getElementById('pos-input-3r')?.value) || roundToTick(direction === 'LONG' ? entryPrice + riskPerShare * 3 : entryPrice - riskPerShare * 3);
+
+        // 如果新標的不在目前行情清單中，自動加載至 marketData 中維持盤中即時追蹤
+        const existsInMarket = this.marketData.find(m => m.symbol === symbol);
+        if (!existsInMarket) {
+          const newMarketItem = {
+            symbol: symbol,
+            underlying: underlying,
+            name: name,
+            sector: spec.sector || '自訂標的',
+            price: entryPrice,
+            change: 0.0,
+            changePct: 0.0,
+            volume: 1200,
+            oi: 5000,
+            oiChange: 150,
+            volumeRatio: 1.2,
+            rsRating: 80,
+            ma5: roundToTick(entryPrice * 0.99),
+            ma10: roundToTick(entryPrice * 0.98),
+            ma20: roundToTick(entryPrice * 0.96),
+            ma60: roundToTick(entryPrice * 0.92),
+            vwap: entryPrice,
+            atr14: Math.max(roundToTick(entryPrice * 0.02), 1),
+            rsi14: 62.0,
+            adx14: 28.0,
+            macdHist: 2.5,
+            instBuyStreak: 3,
+            instNetShares: 1500,
+            revenueYoY: 15.0,
+            isDisposition: false,
+            contractType: 'standard',
+            marginRate: spec.marginRate || 0.135,
+            sharesPerContract: spec.shares || 2000,
+            is_mock: false,
+            price_label: '自訂',
+            price_source: '使用者輸入 / 證交所對照',
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false })
+          };
+          this.marketData.push(newMarketItem);
+        }
 
         if (editId) {
           // 編輯現有部位
@@ -1673,7 +1947,8 @@ class StockFuturesTerminal {
             this.portfolio[idx] = {
               ...this.portfolio[idx],
               symbol,
-              name: live.name || `${symbol}期`,
+              underlying,
+              name,
               contractMonth,
               direction,
               entryPrice,
@@ -1683,14 +1958,15 @@ class StockFuturesTerminal {
               target2R,
               target3R
             };
-            this.showToast(`✓ 已成功更新【${live.name || symbol}】部位設定！`, 'success');
+            this.showToast(`✓ 已成功更新【${name}】部位設定！`, 'success');
           }
         } else {
           // 新增部位
           const newPos = {
             id: `pos_${Date.now()}`,
             symbol,
-            name: live.name || `${symbol}期`,
+            underlying,
+            name,
             contractMonth,
             direction,
             entryPrice,
@@ -1702,7 +1978,7 @@ class StockFuturesTerminal {
             entryDate: new Date().toISOString().slice(0, 10)
           };
           this.portfolio.unshift(newPos);
-          this.showToast(`✓ 已成功新增【${live.name || symbol}】至庫存即時監控！`, 'success');
+          this.showToast(`✓ 已成功新增【${name}】至庫存即時監控！`, 'success');
         }
 
         this.savePortfolio();
@@ -1715,20 +1991,48 @@ class StockFuturesTerminal {
     }
   }
 
+  selectSymbolItem(spec, updatePriceAndInputs = true) {
+    if (!spec) return;
+    const searchInput = document.getElementById('pos-input-symbol-search');
+    const displayNameInput = document.getElementById('pos-input-display-name');
+    const hiddenSym = document.getElementById('pos-hidden-symbol');
+    const hiddenUnderlying = document.getElementById('pos-hidden-underlying');
+    const hiddenName = document.getElementById('pos-hidden-name');
+    const entryInput = document.getElementById('pos-input-entry');
+    const btnDirLong = document.getElementById('pos-dir-long');
+
+    if (hiddenSym) hiddenSym.value = spec.symbol;
+    if (hiddenUnderlying) hiddenUnderlying.value = spec.underlying || '';
+    if (hiddenName) hiddenName.value = spec.name;
+
+    if (updatePriceAndInputs) {
+      if (searchInput) searchInput.value = `${spec.stockName || spec.name} (${spec.symbol}${spec.underlying ? ' / ' + spec.underlying : ''})`;
+      if (displayNameInput) displayNameInput.value = `${spec.name} (${spec.symbol})`;
+
+      const live = this.marketData.find(m => m.symbol === spec.symbol) || spec;
+      if (live && live.price && entryInput) {
+        entryInput.value = live.price;
+      }
+      const dir = btnDirLong && btnDirLong.classList.contains('active') ? 'LONG' : 'SHORT';
+      this.recalcModalStopLoss(dir, 'ATR');
+      this.updateModalRiskPreview();
+    }
+  }
+
   recalcModalStopLoss(direction = 'LONG', method = 'ATR') {
-    const symbolSelect = document.getElementById('pos-select-symbol');
+    const hiddenSym = document.getElementById('pos-hidden-symbol')?.value || 'CDF';
     const entryInput = document.getElementById('pos-input-entry');
     const stopInput = document.getElementById('pos-input-stoploss');
     const r1Input = document.getElementById('pos-input-1r');
     const r2Input = document.getElementById('pos-input-2r');
     const r3Input = document.getElementById('pos-input-3r');
 
-    if (!symbolSelect || !entryInput || !stopInput) return;
+    if (!entryInput || !stopInput) return;
 
-    const sym = symbolSelect.value;
-    const live = this.marketData.find(m => m.symbol === sym) || { price: 100, atr14: 5 };
-    const entry = parseFloat(entryInput.value) || live.price;
-    const atr = live.atr14 || (entry * 0.02);
+    const spec = this.findFuturesSpec(hiddenSym);
+    const live = this.marketData.find(m => m.symbol === hiddenSym) || spec || { price: 100, atr14: 5 };
+    const entry = parseFloat(entryInput.value) || (live.price || 100);
+    const atr = live.atr14 || Math.max(roundToTick(entry * 0.02), 1);
 
     let stopLoss;
     if (method === 'ATR') {
@@ -1748,13 +2052,12 @@ class StockFuturesTerminal {
 
   openPortfolioModal(existingPos = null, prefillSymbol = null) {
     const modalEl = document.getElementById('modal-portfolio-pos');
-    if (!modalEl) {
-      console.error('Modal element modal-portfolio-pos not found');
-      return;
-    }
+    if (!modalEl) return;
+
     const titleEl = document.getElementById('modal-portfolio-title');
     const editIdInput = document.getElementById('pos-edit-id');
-    const symbolSelect = document.getElementById('pos-select-symbol');
+    const searchInput = document.getElementById('pos-input-symbol-search');
+    const displayNameInput = document.getElementById('pos-input-display-name');
     const monthInput = document.getElementById('pos-input-month');
     const btnDirLong = document.getElementById('pos-dir-long');
     const btnDirShort = document.getElementById('pos-dir-short');
@@ -1764,24 +2067,32 @@ class StockFuturesTerminal {
     const r1Input = document.getElementById('pos-input-1r');
     const r2Input = document.getElementById('pos-input-2r');
     const r3Input = document.getElementById('pos-input-3r');
-
-    // 1. 動態填入標的選單 (Populate symbol options with live quotes)
-    if (symbolSelect) {
-      symbolSelect.innerHTML = this.marketData.map(m => `
-        <option value="${m.symbol}">
-          ${m.name} (${m.symbol}) — NT$ ${formatPrice(m.price)} (${formatChangePct(m.changePct)})
-        </option>
-      `).join('');
-    }
+    const dropdown = document.getElementById('symbol-search-dropdown');
+    if (dropdown) dropdown.style.display = 'none';
 
     if (existingPos) {
       // 編輯模式
       if (titleEl) titleEl.innerHTML = `✏️ 編輯【${existingPos.name}】庫存監控部位`;
       if (editIdInput) editIdInput.value = existingPos.id;
-      if (symbolSelect) {
-        symbolSelect.value = existingPos.symbol;
-        symbolSelect.disabled = true; // 編輯時鎖定標的
+      
+      const spec = this.findFuturesSpec(existingPos.symbol) || {
+        symbol: existingPos.symbol,
+        underlying: existingPos.underlying || '',
+        name: existingPos.name,
+        stockName: existingPos.name.replace(/期$/, '')
+      };
+
+      if (searchInput) {
+        searchInput.value = `${spec.stockName || spec.name} (${spec.symbol}${spec.underlying ? ' / ' + spec.underlying : ''})`;
+        searchInput.disabled = true; // 編輯時固定標的
       }
+      if (displayNameInput) {
+        displayNameInput.value = `${existingPos.name} (${existingPos.symbol})`;
+        displayNameInput.disabled = true;
+      }
+
+      this.selectSymbolItem(spec, false);
+
       if (monthInput) monthInput.value = existingPos.contractMonth || `${this.settlementInfo.contractMonth} (近月)`;
 
       const isLong = existingPos.direction === 'LONG';
@@ -1798,18 +2109,17 @@ class StockFuturesTerminal {
       // 新增模式
       if (titleEl) titleEl.innerHTML = `➕ 新增個股期貨庫存監控部位`;
       if (editIdInput) editIdInput.value = '';
-      if (symbolSelect) symbolSelect.disabled = false;
+      if (searchInput) searchInput.disabled = false;
+      if (displayNameInput) displayNameInput.disabled = false;
 
-      const defaultSym = prefillSymbol || (this.marketData[0] ? this.marketData[0].symbol : 'CDF');
-      if (symbolSelect) symbolSelect.value = defaultSym;
+      const targetSym = prefillSymbol || 'CDF';
+      const spec = this.findFuturesSpec(targetSym) || TAIFEX_FUTURES_DATABASE[0];
 
-      const live = this.marketData.find(m => m.symbol === defaultSym) || this.marketData[0] || { price: 100, atr14: 5 };
+      this.selectSymbolItem(spec, true);
+
       if (monthInput) monthInput.value = `${this.settlementInfo.contractMonth} (近月)`;
-
       if (btnDirLong) btnDirLong.classList.add('active');
       if (btnDirShort) btnDirShort.classList.remove('active');
-
-      if (entryInput) entryInput.value = live.price;
       if (qtyInput) qtyInput.value = 1;
 
       this.recalcModalStopLoss('LONG', 'ATR');
@@ -1824,20 +2134,20 @@ class StockFuturesTerminal {
     const previewBox = document.getElementById('pos-risk-preview-box');
     if (!previewBox) return;
 
-    const symbolSelect = document.getElementById('pos-select-symbol');
+    const hiddenSym = document.getElementById('pos-hidden-symbol')?.value || 'CDF';
     const entryInput = document.getElementById('pos-input-entry');
     const qtyInput = document.getElementById('pos-input-contracts');
     const stopInput = document.getElementById('pos-input-stoploss');
     const btnDirLong = document.getElementById('pos-dir-long');
 
-    const sym = symbolSelect?.value || 'CDF';
-    const live = this.marketData.find(m => m.symbol === sym) || { price: 100, marginRate: 0.135, sharesPerContract: 2000 };
-    const entry = parseFloat(entryInput?.value) || live.price || 0;
+    const spec = this.findFuturesSpec(hiddenSym);
+    const live = this.marketData.find(m => m.symbol === hiddenSym) || spec || { price: 100, marginRate: 0.135, shares: 2000 };
+    const entry = parseFloat(entryInput?.value) || (live.price || 100);
     const contracts = parseInt(qtyInput?.value) || 1;
     const stopLoss = parseFloat(stopInput?.value) || 0;
     const isLong = btnDirLong ? btnDirLong.classList.contains('active') : true;
 
-    const sharesPerContract = live.sharesPerContract || 2000;
+    const sharesPerContract = live.shares || live.sharesPerContract || 2000;
     const marginRate = live.marginRate || 0.135;
     const notionalValue = entry * sharesPerContract * contracts;
     const requiredMargin = notionalValue * marginRate;
