@@ -12,7 +12,7 @@
       "session_name": "日盤交易中",
       "display_label": "即時",
       "is_trading": true,
-      "current_time": "2026/10/08 09:12:23"
+      "current_time": "2026/10/08 09:16:09"
     },
     "source_description": "台灣證券交易所 (TWSE MIS) / 期交所 (TAIFEX) 公開免費即時行情",
     "settlement": {
@@ -35,7 +35,7 @@
       "change": 168.2,
       "changePct": 0.72,
       "formatted_change": "+168.20 (+0.72%)",
-      "timestamp": "2026/10/08 09:12:23",
+      "timestamp": "2026/10/08 09:16:09",
       "source": "Shioaji / 證交所"
     },
     "txf": {
@@ -45,7 +45,7 @@
       "change": 195.0,
       "changePct": 0.84,
       "formatted_change": "+195.00 (+0.84%)",
-      "timestamp": "2026/10/08 09:12:23",
+      "timestamp": "2026/10/08 09:16:09",
       "source": "Shioaji 正式行情"
     }
   },
@@ -60,7 +60,7 @@
       "changePct": -1.35,
       "formatted_change": "-35.00",
       "formatted_rate": "-1.35%",
-      "volume": 3749,
+      "volume": 3948,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 42800,
       "oiChange": 1850,
@@ -84,7 +84,7 @@
       "contractType": "standard",
       "marginRate": 0.135,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:12:00",
+      "timestamp": "2026/10/08 09:16:05",
       "is_mock": false,
       "price_label": "即時"
     },
@@ -98,7 +98,7 @@
       "changePct": -2.82,
       "formatted_change": "-100.00",
       "formatted_rate": "-2.82%",
-      "volume": 681,
+      "volume": 820,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 12400,
       "oiChange": 1120,
@@ -122,7 +122,7 @@
       "contractType": "standard",
       "marginRate": 0.162,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:12:00",
+      "timestamp": "2026/10/08 09:15:56",
       "is_mock": false,
       "price_label": "即時"
     },
@@ -136,7 +136,7 @@
       "changePct": -0.4,
       "formatted_change": "-1.00",
       "formatted_rate": "-0.40%",
-      "volume": 5596,
+      "volume": 5971,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 68200,
       "oiChange": 2400,
@@ -160,7 +160,7 @@
       "contractType": "standard",
       "marginRate": 0.135,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:12:10",
+      "timestamp": "2026/10/08 09:15:55",
       "is_mock": false,
       "price_label": "即時"
     },
@@ -174,7 +174,7 @@
       "changePct": -2.09,
       "formatted_change": "-7.00",
       "formatted_rate": "-2.09%",
-      "volume": 4963,
+      "volume": 5330,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 18400,
       "oiChange": 760,
@@ -198,7 +198,7 @@
       "contractType": "standard",
       "marginRate": 0.135,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:12:06",
+      "timestamp": "2026/10/08 09:15:56",
       "is_mock": false,
       "price_label": "即時"
     },
@@ -212,7 +212,7 @@
       "changePct": -6.89,
       "formatted_change": "-105.00",
       "formatted_rate": "-6.89%",
-      "volume": 1633,
+      "volume": 1958,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 6200,
       "oiChange": 540,
@@ -236,7 +236,7 @@
       "contractType": "standard",
       "marginRate": 0.162,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:12:00",
+      "timestamp": "2026/10/08 09:16:00",
       "is_mock": false,
       "price_label": "即時"
     },
@@ -250,7 +250,7 @@
       "changePct": -0.72,
       "formatted_change": "-35.00",
       "formatted_rate": "-0.72%",
-      "volume": 1060,
+      "volume": 1138,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 11200,
       "oiChange": 680,
@@ -274,7 +274,7 @@
       "contractType": "standard",
       "marginRate": 0.135,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:12:01",
+      "timestamp": "2026/10/08 09:16:01",
       "is_mock": false,
       "price_label": "即時"
     },
@@ -288,7 +288,7 @@
       "changePct": 0.0,
       "formatted_change": "+0.00",
       "formatted_rate": "+0.00%",
-      "volume": 382,
+      "volume": 393,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 24000,
       "oiChange": 420,
@@ -312,7 +312,7 @@
       "contractType": "standard",
       "marginRate": 0.135,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:12:03",
+      "timestamp": "2026/10/08 09:15:48",
       "is_mock": false,
       "price_label": "即時"
     },
@@ -326,7 +326,7 @@
       "changePct": -1.14,
       "formatted_change": "-8.00",
       "formatted_rate": "-1.14%",
-      "volume": 157,
+      "volume": 232,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 5800,
       "oiChange": -320,
@@ -350,7 +350,7 @@
       "contractType": "standard",
       "marginRate": 0.2025,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:11:56",
+      "timestamp": "2026/10/08 09:15:59",
       "is_mock": false,
       "price_label": "即時"
     },
@@ -364,7 +364,7 @@
       "changePct": -0.6,
       "formatted_change": "-25.00",
       "formatted_rate": "-0.60%",
-      "volume": 388,
+      "volume": 442,
       "price_source": "證交所 MIS 即時行情 (免費公開)",
       "oi": 3100,
       "oiChange": 280,
@@ -388,7 +388,7 @@
       "contractType": "standard",
       "marginRate": 0.2025,
       "sharesPerContract": 2000,
-      "timestamp": "2026/10/08 09:12:04",
+      "timestamp": "2026/10/08 09:15:55",
       "is_mock": false,
       "price_label": "即時"
     }
@@ -408,6 +408,6 @@
     "session_name": "日盤交易中",
     "display_label": "即時",
     "is_trading": true,
-    "current_time": "2026/10/08 09:12:22"
+    "current_time": "2026/10/08 09:16:08"
   }
 }
