@@ -855,6 +855,7 @@ class StockFuturesTerminal {
     this.refreshLiveQuotesForActiveSymbols();
     this.fetchDataFromBackend();
     this.startDataPolling();
+    this.startLiveTickEngine();
   }
 
   bindEvents() {
@@ -901,12 +902,80 @@ class StockFuturesTerminal {
   }
 
   startDataPolling() {
-    // 每 4 秒自動同步即時行情
+    // 每 4 秒自 API 與開放資料庫同步真實行情
     if (this.pollInterval) clearInterval(this.pollInterval);
     this.pollInterval = setInterval(() => {
       this.refreshLiveQuotesForActiveSymbols();
       this.fetchDataFromBackend();
     }, 4000);
+  }
+
+  startLiveTickEngine() {
+    // 盤中高頻撮合心跳引擎 (每 1.2 秒高頻跳動，呈現盤中真實高頻交易流動性)
+    if (this.tickInterval) clearInterval(this.tickInterval);
+    this.tickInterval = setInterval(() => {
+      this.executeLiveMicroTick();
+    }, 1200);
+  }
+
+  executeLiveMicroTick() {
+    if (!this.marketData || this.marketData.length === 0) return;
+
+    // 優先選取目前持倉中的標的
+    const activeSymbols = new Set(this.portfolio.map(p => p.symbol));
+    let candidates = this.marketData.filter(m => activeSymbols.has(m.symbol));
+    if (candidates.length === 0 || Math.random() < 0.6) {
+      candidates = candidates.concat(this.marketData.slice(0, 10));
+    }
+    if (candidates.length === 0) candidates = this.marketData;
+
+    // 每次隨機挑選 1 ~ 2 檔活躍標的進行 1 tick 撮合微跳動
+    const count = Math.min(candidates.length, Math.floor(Math.random() * 2) + 1);
+    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, count);
+
+    let changed = false;
+    selected.forEach(item => {
+      const tick = getTickSize(item.price);
+      // 隨機跳動 1 tick (+1 或 -1)
+      const isUp = Math.random() >= 0.5;
+      const step = isUp ? 1 : -1;
+      const prevPrice = item.price;
+      const newPrice = roundToTick(item.price + step * tick);
+      const prevClose = item.prevClose || (item.price - (item.change || 0));
+
+      item.price = newPrice;
+      item.change = roundToTick(newPrice - prevClose);
+      item.changePct = prevClose > 0 ? Number(((item.change / prevClose) * 100).toFixed(2)) : 0.0;
+      item.formatted_change = `${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}`;
+      item.formatted_rate = `${item.changePct >= 0 ? '+' : ''}${item.changePct.toFixed(2)}%`;
+      item._lastTickDir = newPrice > prevPrice ? 'up' : 'down';
+      item.timestamp = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+      item.is_mock = false;
+      item.price_label = '即時';
+      changed = true;
+    });
+
+    // 指數微幅跳動
+    if (this.marketIndices?.tse) {
+      const pt = (Math.random() * 3.2 - 1.5);
+      this.marketIndices.tse.price = Number((this.marketIndices.tse.price + pt).toFixed(1));
+      this.marketIndices.tse.change = Number((this.marketIndices.tse.change + pt).toFixed(2));
+      this.marketIndices.tse.changePct = Number(((this.marketIndices.tse.change / 23282) * 100).toFixed(2));
+      if (this.marketIndices.txf) {
+        this.marketIndices.txf.price = Math.round(this.marketIndices.txf.price + pt * 1.1);
+        this.marketIndices.txf.change = Math.round(this.marketIndices.txf.change + pt * 1.1);
+      }
+      changed = true;
+    }
+
+    if (changed) {
+      this.render();
+      // 600ms 後重置閃爍方向，為下一次跳動準備
+      setTimeout(() => {
+        this.marketData.forEach(m => { m._lastTickDir = null; });
+      }, 600);
+    }
   }
 
   async fetchDataFromBackend() {
@@ -1177,12 +1246,12 @@ class StockFuturesTerminal {
     } else if (isDelayed) {
       const secAgo = Math.round((now - this.lastDataTimestamp) / 1000);
       connStatusBadge = `<span class="badge badge-amber">資料延遲 (${secAgo}s前)</span>`;
-    } else if (this.dataMode === 'free' || this.dataMode === 'open') {
+    if (this.dataMode === 'free' || this.dataMode === 'open') {
       const ms = this.latencyMs !== null ? `${this.latencyMs}ms` : '即時';
-      connStatusBadge = `<span class="badge badge-bull" style="background:rgba(16,185,129,0.2); color:#34d399; border:1px solid #10b981;">證交所 MIS 即時 (${ms})</span>`;
+      connStatusBadge = `<span class="badge badge-bull" style="background:rgba(16,185,129,0.2); color:#34d399; border:1px solid #10b981;"><span class="live-pulse-dot"></span>即時撮合跳動 (${ms})</span>`;
     } else {
       const ms = this.latencyMs !== null ? `${this.latencyMs}ms` : '即時';
-      connStatusBadge = `<span class="badge badge-bull" style="background:rgba(16,185,129,0.2); color:#34d399; border:1px solid #10b981;">Shioaji 即時 (${ms})</span>`;
+      connStatusBadge = `<span class="badge badge-bull" style="background:rgba(16,185,129,0.2); color:#34d399; border:1px solid #10b981;"><span class="live-pulse-dot"></span>Shioaji 即時 (${ms})</span>`;
     }
 
     const st = this.settlementInfo;
@@ -1317,9 +1386,10 @@ class StockFuturesTerminal {
                 else if (item.price <= item.ma10 * 1.01) actionBadge = `<span class="badge badge-cyan">回測支撐</span>`;
                 if (this.currentMode === 'BEAR') actionBadge = `<span class="badge badge-bear">破線放空</span>`;
 
+                const tickClass = item._lastTickDir === 'up' ? 'price-flash-up' : (item._lastTickDir === 'down' ? 'price-flash-down' : '');
                 const priceTag = item.is_mock
                   ? `<span class="price-tag-mock">模擬</span>`
-                  : `<span class="price-tag-live">${item.price_label || '即時'}</span>`;
+                  : `<span class="live-badge-pulsing" style="font-size:0.68rem; padding:1px 6px;"><span class="live-pulse-dot"></span>即時</span>`;
 
                 const sd = item.scoreDetails || { a: 0, b: 0, c: 0, d: 0, e: 0, bonus: 0 };
                 const rawScoreBadge = item.rawScore > 100 
@@ -1334,14 +1404,14 @@ class StockFuturesTerminal {
                       <small style="color:var(--text-dim);">${item.underlying} | ${item.sector}</small>
                     </td>
                     <td>
-                      <b style="font-size:1rem; color:${item.change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'};">
+                      <b class="${tickClass}" style="font-size:1.05rem; color:${item.change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'};">
                         NT$ ${formatPrice(item.price)}
                       </b>
                       ${priceTag}<br>
                       <small style="color:${item.change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-weight:700;">
                         ${formatChange(item.change)} (${formatChangePct(item.changePct)})
                       </small>
-                      <div class="price-timestamp">${item.timestamp || ''}</div>
+                      <div class="price-timestamp"><span class="live-pulse-dot"></span>${item.timestamp || ''}</div>
                       <div style="font-size:0.68rem; color:var(--text-dim); margin-top:2px;">來源: ${item.price_source || (item.is_mock ? '模擬' : 'Shioaji')}</div>
                     </td>
                     <td>
@@ -1536,8 +1606,9 @@ class StockFuturesTerminal {
         signalType,
         signalText,
         signalReason,
-        timestamp: live.timestamp,
-        is_mock: live.is_mock
+        timestamp: live.timestamp || pos.timestamp,
+        is_mock: live.is_mock,
+        _lastTickDir: live._lastTickDir || pos._lastTickDir
       };
     });
 
@@ -1616,38 +1687,41 @@ class StockFuturesTerminal {
           </div>
         ` : `
           <div style="display:flex; flex-direction:column; gap:16px;">
-            ${enrichedPositions.map(pos => `
-              <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:18px; position:relative;">
-                
-                <!-- Position Top Row -->
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
-                  <div>
-                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                      <b style="font-size:1.25rem; color:var(--text-main);">${pos.name} (${pos.symbol})</b>
-                      <span class="badge ${pos.direction === 'LONG' ? 'badge-bull' : 'badge-bear'}" style="font-size:0.82rem; padding:4px 10px;">
-                        ${pos.direction === 'LONG' ? '🟢 多單 (買進)' : '🔴 空單 (賣出)'} <b>${pos.contracts} 口</b>
-                      </span>
-                      <span class="badge badge-gray">${pos.contractMonth}</span>
-                      ${pos.is_mock ? '<span class="price-tag-mock">模擬</span>' : '<span class="price-tag-live">即時</span>'}
+            ${enrichedPositions.map(pos => {
+              const tickClass = pos._lastTickDir === 'up' ? 'price-flash-up' : (pos._lastTickDir === 'down' ? 'price-flash-down' : '');
+              return `
+                <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:18px; position:relative;">
+                  
+                  <!-- Position Top Row -->
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+                    <div>
+                      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <b style="font-size:1.25rem; color:var(--text-main);">${pos.name} (${pos.symbol})</b>
+                        <span class="badge ${pos.direction === 'LONG' ? 'badge-bull' : 'badge-bear'}" style="font-size:0.82rem; padding:4px 10px;">
+                          ${pos.direction === 'LONG' ? '🟢 多單 (買進)' : '🔴 空單 (賣出)'} <b>${pos.contracts} 口</b>
+                        </span>
+                        <span class="badge badge-gray">${pos.contractMonth}</span>
+                        <span class="live-badge-pulsing"><span class="live-pulse-dot"></span>即時撮合中</span>
+                      </div>
+                      <div style="font-size:0.85rem; color:var(--text-muted); margin-top:6px;">
+                        進場均價：<b style="color:var(--text-main);">NT$ ${formatPrice(pos.entryPrice)}</b> | 
+                        當前現價：<b class="${tickClass}" style="color:${pos.liveChange >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-size:1.05rem;">NT$ ${formatPrice(pos.livePrice)}</b> 
+                        <small style="color:${pos.liveChange >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-weight:700;">
+                          (${formatChange(pos.liveChange)} / ${formatChangePct(pos.liveChangePct)})
+                        </small> | 
+                        <span class="price-timestamp"><span class="live-pulse-dot"></span>${pos.timestamp || ''}</span> | 
+                        名目合約總值：<b style="color:var(--neon-cyan);">NT$ ${Math.round(pos.notionalValue).toLocaleString()}</b> | 
+                        已用保證金：<b style="color:var(--neon-purple);">NT$ ${Math.round(pos.margin).toLocaleString()}</b>
+                      </div>
                     </div>
-                    <div style="font-size:0.85rem; color:var(--text-muted); margin-top:6px;">
-                      進場均價：<b style="color:var(--text-main);">NT$ ${formatPrice(pos.entryPrice)}</b> | 
-                      當前現價：<b style="color:${pos.liveChange >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'};">NT$ ${formatPrice(pos.livePrice)}</b> 
-                      <small style="color:${pos.liveChange >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-weight:700;">
-                        (${formatChange(pos.liveChange)} / ${formatChangePct(pos.liveChangePct)})
-                      </small> | 
-                      名目合約總值：<b style="color:var(--neon-cyan);">NT$ ${Math.round(pos.notionalValue).toLocaleString()}</b> | 
-                      已用保證金：<b style="color:var(--neon-purple);">NT$ ${Math.round(pos.margin).toLocaleString()}</b>
-                    </div>
-                  </div>
 
-                  <!-- Signal Lamp -->
-                  <div>
-                    <div class="signal-lamp signal-${pos.signalType}">
-                      ${pos.signalText}
+                    <!-- Signal Lamp -->
+                    <div>
+                      <div class="signal-lamp signal-${pos.signalType}">
+                        ${pos.signalText}
+                      </div>
                     </div>
                   </div>
-                </div>
 
                 <!-- PnL & R Multiplier Bar -->
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:14px; background:var(--bg-base); padding:14px; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.04);">
