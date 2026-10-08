@@ -1785,7 +1785,8 @@ class StockFuturesTerminal {
                 </div>
 
               </div>
-            `).join('')}
+            `;
+            }).join('')}
           </div>
         `}
       </div>
@@ -2888,7 +2889,11 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Initialize on DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
-  window.stockTerminal = new StockFuturesTerminal();
-});
+// Initialize on DOM Ready or immediately if document is already ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!window.stockTerminal) window.stockTerminal = new StockFuturesTerminal();
+  });
+} else {
+  if (!window.stockTerminal) window.stockTerminal = new StockFuturesTerminal();
+}
