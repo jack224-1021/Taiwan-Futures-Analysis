@@ -1622,15 +1622,38 @@ class StockFuturesTerminal {
   // ==============================================================================
   findFuturesSpec(query) {
     if (!query) return null;
-    const q = String(query).trim().toUpperCase();
-    const cleanQ = q.replace(/期$/, '');
+    const raw = String(query).trim();
+    if (!raw) return null;
+    const q = raw.toUpperCase();
+    const cleanQ = q.replace(/期$/, '').replace(/\(.*\)/, '').trim();
 
-    // 1. Exact match in TAIFEX Database
+    // 優先以 4~5 位數字代碼 (如 3231, 2303, 2330) 進行完全對應
+    const codeMatch = raw.match(/\b\d{4,5}\b/);
+    if (codeMatch) {
+      const code = codeMatch[0];
+      const matchByCode = TAIFEX_FUTURES_DATABASE.find(item => item.underlying === code);
+      if (matchByCode) return matchByCode;
+      const inMarketCode = this.marketData.find(m => m.underlying === code);
+      if (inMarketCode) {
+        return {
+          symbol: inMarketCode.symbol,
+          underlying: inMarketCode.underlying || code,
+          name: inMarketCode.name,
+          stockName: inMarketCode.name.replace(/期$/, ''),
+          sector: inMarketCode.sector || '一般',
+          shares: inMarketCode.sharesPerContract || 2000,
+          marginRate: inMarketCode.marginRate || 0.135,
+          price: inMarketCode.price
+        };
+      }
+    }
+
+    // 1. Exact match in TAIFEX Database (Symbol, Underlying, Name, StockName)
     let found = TAIFEX_FUTURES_DATABASE.find(item => 
       item.symbol.toUpperCase() === q ||
       item.underlying === q ||
       item.name === q ||
-      item.name === `${q}期` ||
+      item.name === `${cleanQ}期` ||
       item.stockName === q ||
       item.stockName === cleanQ
     );
@@ -1641,7 +1664,8 @@ class StockFuturesTerminal {
       m.symbol.toUpperCase() === q || 
       m.underlying === q || 
       m.name === q || 
-      m.name === `${q}期`
+      m.name === `${cleanQ}期` ||
+      (m.name && m.name.replace(/期$/, '') === cleanQ)
     );
     if (inMarket) {
       return {
@@ -1660,8 +1684,8 @@ class StockFuturesTerminal {
     found = TAIFEX_FUTURES_DATABASE.find(item => 
       item.symbol.toUpperCase().includes(q) ||
       (item.underlying && item.underlying.includes(q)) ||
-      item.name.includes(cleanQ) ||
-      item.stockName.includes(cleanQ)
+      (cleanQ && item.name.includes(cleanQ)) ||
+      (cleanQ && item.stockName.includes(cleanQ))
     );
     if (found) return found;
 
@@ -1670,8 +1694,8 @@ class StockFuturesTerminal {
     return {
       symbol: customCode,
       underlying: /^\d+$/.test(q) ? q : '',
-      name: q.endsWith('期') ? q : `${q}期`,
-      stockName: cleanQ,
+      name: raw.endsWith('期') ? raw : `${cleanQ || raw}期`,
+      stockName: cleanQ || raw,
       sector: '自訂標的',
       shares: 2000,
       marginRate: 0.135,
@@ -1703,15 +1727,18 @@ class StockFuturesTerminal {
     // 搜尋輸入框與下拉即時匹配
     const searchInput = document.getElementById('pos-input-symbol-search');
     const dropdownEl = document.getElementById('symbol-search-dropdown');
+    const displayNameInput = document.getElementById('pos-input-display-name');
+    const entryInput = document.getElementById('pos-input-entry');
 
     const renderSearchResults = (query) => {
       if (!dropdownEl) return;
-      const q = String(query || '').trim().toLowerCase();
-      const cleanQ = q.replace(/期$/, '');
+      const raw = String(query || '').trim();
+      const q = raw.toLowerCase();
+      const cleanQ = q.replace(/期$/, '').replace(/\(.*\)/, '').trim();
 
       let matches = [];
       if (!q) {
-        // 空白時顯示預設熱門標的
+        // 空白時顯示預設前 10 檔熱門標的
         matches = TAIFEX_FUTURES_DATABASE.slice(0, 10);
       } else {
         matches = TAIFEX_FUTURES_DATABASE.filter(item => 
@@ -1749,12 +1776,37 @@ class StockFuturesTerminal {
 
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
-        renderSearchResults(e.target.value);
-        this.selectSymbolItem(this.findFuturesSpec(e.target.value), false);
+        const query = e.target.value;
+        renderSearchResults(query);
+        const spec = this.findFuturesSpec(query);
+        if (spec) {
+          // 即時更新標的、現價、停損與試算 (保留搜尋框文字不打斷打字)
+          this.selectSymbolItem(spec, true, false);
+        }
       });
 
       searchInput.addEventListener('focus', (e) => {
         renderSearchResults(e.target.value);
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const spec = this.findFuturesSpec(e.target.value);
+          if (spec) {
+            this.selectSymbolItem(spec, true, true);
+            if (dropdownEl) dropdownEl.style.display = 'none';
+          }
+        }
+      });
+    }
+
+    if (displayNameInput) {
+      displayNameInput.addEventListener('input', (e) => {
+        const spec = this.findFuturesSpec(e.target.value);
+        if (spec) {
+          this.selectSymbolItem(spec, true, false);
+        }
       });
     }
 
@@ -1766,7 +1818,7 @@ class StockFuturesTerminal {
         const sym = itemEl.dataset.sym;
         const spec = this.findFuturesSpec(sym);
         if (spec) {
-          this.selectSymbolItem(spec, true);
+          this.selectSymbolItem(spec, true, true);
         }
         dropdownEl.style.display = 'none';
       });
@@ -1785,7 +1837,7 @@ class StockFuturesTerminal {
         const sym = btn.dataset.sym;
         const spec = this.findFuturesSpec(sym);
         if (spec) {
-          this.selectSymbolItem(spec, true);
+          this.selectSymbolItem(spec, true, true);
           if (dropdownEl) dropdownEl.style.display = 'none';
         }
       });
@@ -1840,7 +1892,6 @@ class StockFuturesTerminal {
         const spec = this.findFuturesSpec(hiddenSym);
         const live = this.marketData.find(m => m.symbol === hiddenSym) || spec;
         if (live && live.price) {
-          const entryInput = document.getElementById('pos-input-entry');
           if (entryInput) entryInput.value = live.price;
           const dir = btnDirLong && btnDirLong.classList.contains('active') ? 'LONG' : 'SHORT';
           this.recalcModalStopLoss(dir);
@@ -1872,8 +1923,17 @@ class StockFuturesTerminal {
       });
     }
 
+    // 進場均價變更時自動重算停損與風控曝險
+    if (entryInput) {
+      entryInput.addEventListener('input', () => {
+        const dir = btnDirLong && btnDirLong.classList.contains('active') ? 'LONG' : 'SHORT';
+        this.recalcModalStopLoss(dir, 'ATR');
+        this.updateModalRiskPreview();
+      });
+    }
+
     // 所有數值輸入欄位連動試算
-    ['pos-input-entry', 'pos-input-contracts', 'pos-input-stoploss', 'pos-input-1r', 'pos-input-2r', 'pos-input-3r', 'pos-input-display-name'].forEach(id => {
+    ['pos-input-contracts', 'pos-input-stoploss', 'pos-input-1r', 'pos-input-2r', 'pos-input-3r'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', () => this.updateModalRiskPreview());
     });
@@ -1884,12 +1944,20 @@ class StockFuturesTerminal {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         const editId = document.getElementById('pos-edit-id')?.value;
-        const symbol = (document.getElementById('pos-hidden-symbol')?.value || 'CDF').toUpperCase();
-        const underlying = document.getElementById('pos-hidden-underlying')?.value || '';
-        const rawDisplayName = document.getElementById('pos-input-display-name')?.value || document.getElementById('pos-input-symbol-search')?.value || `${symbol}期`;
-        const name = rawDisplayName.includes('(') ? rawDisplayName.split('(')[0].trim() : rawDisplayName.trim();
+        const rawSearch = document.getElementById('pos-input-symbol-search')?.value || '';
+        const rawDisplay = document.getElementById('pos-input-display-name')?.value || '';
+        const hiddenSym = (document.getElementById('pos-hidden-symbol')?.value || 'CDF').toUpperCase();
+        const hiddenUnderlying = document.getElementById('pos-hidden-underlying')?.value || '';
 
-        const spec = this.findFuturesSpec(symbol) || { shares: 2000, marginRate: 0.135 };
+        // 智慧解析最終標的
+        const spec = this.findFuturesSpec(rawSearch) || 
+                     this.findFuturesSpec(rawDisplay) || 
+                     this.findFuturesSpec(hiddenSym) || 
+                     { symbol: hiddenSym, underlying: hiddenUnderlying, name: rawDisplay || rawSearch || '自訂期', shares: 2000, marginRate: 0.135 };
+
+        const symbol = spec.symbol;
+        const underlying = spec.underlying || hiddenUnderlying || '';
+        const name = spec.name || (rawDisplay.includes('(') ? rawDisplay.split('(')[0].trim() : rawDisplay.trim());
         const contractMonth = document.getElementById('pos-input-month')?.value || `${this.settlementInfo.contractMonth} (近月)`;
         const direction = btnDirLong && btnDirLong.classList.contains('active') ? 'LONG' : 'SHORT';
         const entryPrice = parseFloat(document.getElementById('pos-input-entry')?.value) || (spec.price || 100);
@@ -1901,7 +1969,7 @@ class StockFuturesTerminal {
         const target3R = parseFloat(document.getElementById('pos-input-3r')?.value) || roundToTick(direction === 'LONG' ? entryPrice + riskPerShare * 3 : entryPrice - riskPerShare * 3);
 
         // 如果新標的不在目前行情清單中，自動加載至 marketData 中維持盤中即時追蹤
-        const existsInMarket = this.marketData.find(m => m.symbol === symbol);
+        const existsInMarket = this.marketData.find(m => m.symbol === symbol || (underlying && m.underlying === underlying));
         if (!existsInMarket) {
           const newMarketItem = {
             symbol: symbol,
@@ -1938,6 +2006,9 @@ class StockFuturesTerminal {
             timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false })
           };
           this.marketData.push(newMarketItem);
+        } else {
+          existsInMarket.underlying = underlying || existsInMarket.underlying;
+          existsInMarket.name = name || existsInMarket.name;
         }
 
         if (editId) {
@@ -1991,7 +2062,7 @@ class StockFuturesTerminal {
     }
   }
 
-  selectSymbolItem(spec, updatePriceAndInputs = true) {
+  selectSymbolItem(spec, updatePriceAndInputs = true, updateSearchInput = true) {
     if (!spec) return;
     const searchInput = document.getElementById('pos-input-symbol-search');
     const displayNameInput = document.getElementById('pos-input-display-name');
@@ -2005,13 +2076,18 @@ class StockFuturesTerminal {
     if (hiddenUnderlying) hiddenUnderlying.value = spec.underlying || '';
     if (hiddenName) hiddenName.value = spec.name;
 
-    if (updatePriceAndInputs) {
-      if (searchInput) searchInput.value = `${spec.stockName || spec.name} (${spec.symbol}${spec.underlying ? ' / ' + spec.underlying : ''})`;
-      if (displayNameInput) displayNameInput.value = `${spec.name} (${spec.symbol})`;
+    if (updateSearchInput && searchInput) {
+      searchInput.value = `${spec.stockName || spec.name} (${spec.underlying ? spec.underlying + ' / ' : ''}${spec.symbol})`;
+    }
+    if (displayNameInput) {
+      displayNameInput.value = `${spec.name} (${spec.underlying ? spec.underlying + ' / ' : ''}${spec.symbol})`;
+    }
 
-      const live = this.marketData.find(m => m.symbol === spec.symbol) || spec;
-      if (live && live.price && entryInput) {
-        entryInput.value = live.price;
+    if (updatePriceAndInputs) {
+      const live = this.marketData.find(m => m.symbol === spec.symbol || (spec.underlying && m.underlying === spec.underlying)) || spec;
+      const targetPrice = live.price || spec.price;
+      if (entryInput && targetPrice !== undefined && targetPrice !== null) {
+        entryInput.value = targetPrice;
       }
       const dir = btnDirLong && btnDirLong.classList.contains('active') ? 'LONG' : 'SHORT';
       this.recalcModalStopLoss(dir, 'ATR');
@@ -2083,7 +2159,7 @@ class StockFuturesTerminal {
       };
 
       if (searchInput) {
-        searchInput.value = `${spec.stockName || spec.name} (${spec.symbol}${spec.underlying ? ' / ' + spec.underlying : ''})`;
+        searchInput.value = `${spec.stockName || spec.name} (${spec.underlying ? spec.underlying + ' / ' : ''}${spec.symbol})`;
         searchInput.disabled = true; // 編輯時固定標的
       }
       if (displayNameInput) {
@@ -2091,7 +2167,7 @@ class StockFuturesTerminal {
         displayNameInput.disabled = true;
       }
 
-      this.selectSymbolItem(spec, false);
+      this.selectSymbolItem(spec, false, false);
 
       if (monthInput) monthInput.value = existingPos.contractMonth || `${this.settlementInfo.contractMonth} (近月)`;
 
@@ -2112,10 +2188,10 @@ class StockFuturesTerminal {
       if (searchInput) searchInput.disabled = false;
       if (displayNameInput) displayNameInput.disabled = false;
 
-      const targetSym = prefillSymbol || 'CDF';
-      const spec = this.findFuturesSpec(targetSym) || TAIFEX_FUTURES_DATABASE[0];
+      const targetSym = prefillSymbol || 'GBF'; // 預設或指定
+      const spec = this.findFuturesSpec(targetSym) || TAIFEX_FUTURES_DATABASE.find(item => item.symbol === 'GBF') || TAIFEX_FUTURES_DATABASE[0];
 
-      this.selectSymbolItem(spec, true);
+      this.selectSymbolItem(spec, true, true);
 
       if (monthInput) monthInput.value = `${this.settlementInfo.contractMonth} (近月)`;
       if (btnDirLong) btnDirLong.classList.add('active');
