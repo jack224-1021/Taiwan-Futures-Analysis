@@ -1447,11 +1447,7 @@ class StockFuturesTerminal {
     }
 
     if (changed) {
-      if (!isModalOpen) {
-        this.render();
-      } else {
-        this.renderTopMarquee();
-      }
+      this.updateLiveTickDOM(selected);
 
       // 600ms 後重置閃爍方向，為下一次跳動準備
       setTimeout(() => {
@@ -1520,7 +1516,7 @@ class StockFuturesTerminal {
               ...data.settlement
             };
           }
-          this.render();
+          this.updateLiveTickDOM(this.marketData);
           success = true;
           break;
         } else if (res.status === 503) {
@@ -1646,7 +1642,156 @@ class StockFuturesTerminal {
 
     if (hasUpdates) {
       this.lastDataTimestamp = Date.now();
-      this.render();
+      this.updateLiveTickDOM(this.marketData);
+    }
+  }
+
+  // ==============================================================================
+  // High-Performance In-Place Live Tick DOM Updater (零破壞刷新，徹底避免畫面卡死)
+  // ==============================================================================
+  updateLiveTickDOM(updatedItems = []) {
+    // 1. 即時更新頂部跑馬燈與指數
+    this.renderTopMarquee();
+
+    if (!updatedItems || updatedItems.length === 0) return;
+
+    // 2. 若當前為強勢總榜，對變動標的進行精確局部 DOM 更新
+    if (this.activeTab === 'ranking') {
+      updatedItems.forEach(item => {
+        const row = document.querySelector(`tr[data-symbol="${item.symbol}"]`);
+        if (!row) return;
+
+        const priceEl = row.querySelector('.cell-live-price');
+        const changeEl = row.querySelector('.cell-live-change');
+        const timeEl = row.querySelector('.cell-live-time');
+        const tickClass = item._lastTickDir === 'up' ? 'price-flash-up' : (item._lastTickDir === 'down' ? 'price-flash-down' : '');
+        const color = item.change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)';
+
+        if (priceEl) {
+          priceEl.textContent = `NT$ ${formatPrice(item.price)}`;
+          priceEl.style.color = color;
+          priceEl.classList.remove('price-flash-up', 'price-flash-down');
+          if (tickClass) priceEl.classList.add(tickClass);
+        }
+
+        if (changeEl) {
+          changeEl.textContent = `${formatChange(item.change)} (${formatChangePct(item.changePct)})`;
+          changeEl.style.color = color;
+        }
+
+        if (timeEl) {
+          timeEl.innerHTML = `<span class="live-pulse-dot"></span>${item.timestamp || ''}`;
+        }
+      });
+    }
+
+    // 3. 若當前為庫存監控頁，即時更新持倉卡片及頂部統計卡
+    if (this.activeTab === 'portfolio') {
+      let totalUnrealizedPnl = 0;
+      let totalMarginUsed = 0;
+      let totalNotionalValue = 0;
+
+      this.portfolio.forEach(pos => {
+        let live = this.marketData.find(m => 
+          m.symbol === pos.symbol || 
+          (pos.underlying && m.underlying === pos.underlying) ||
+          m.name === pos.name ||
+          (m.symbol && pos.symbol && m.symbol.toUpperCase() === pos.symbol.toUpperCase())
+        );
+        const spec = this.findFuturesSpec(pos.symbol) || this.findFuturesSpec(pos.name) || { price: pos.entryPrice, prevClose: pos.entryPrice, change: 0, changePct: 0, shares: 2000, marginRate: 0.135 };
+        
+        const price = live?.price || spec.price || pos.entryPrice;
+        const prevClose = live?.prevClose || spec.prevClose || price;
+        const change = live?.change !== undefined ? live.change : roundToTick(price - prevClose);
+        const changePct = live?.changePct !== undefined ? live.changePct : (prevClose > 0 ? Number(((change / prevClose) * 100).toFixed(2)) : 0.0);
+        const sharesPerContract = live?.sharesPerContract || spec.shares || 2000;
+        const marginRate = live?.marginRate || spec.marginRate || 0.135;
+
+        const notionalValue = price * sharesPerContract * pos.contracts;
+        const priceDiff = pos.direction === 'LONG' ? (price - pos.entryPrice) : (pos.entryPrice - price);
+        const unrealizedPnl = priceDiff * sharesPerContract * pos.contracts;
+        const pnlPct = pos.entryPrice > 0 ? ((priceDiff / pos.entryPrice) * 100).toFixed(2) : '0.00';
+        const riskPerShare = Math.abs(pos.entryPrice - pos.currentStopLoss);
+        const currentR = riskPerShare > 0 ? (priceDiff / riskPerShare).toFixed(2) : '0.00';
+        const margin = notionalValue * marginRate;
+
+        totalUnrealizedPnl += unrealizedPnl;
+        totalMarginUsed += margin;
+        totalNotionalValue += notionalValue;
+
+        const card = document.querySelector(`div.pos-item-card[data-pos-id="${pos.id}"]`);
+        if (!card) return;
+
+        const livePriceEl = card.querySelector('.pos-live-price');
+        const liveChangeEl = card.querySelector('.pos-live-change');
+        const liveTimeEl = card.querySelector('.pos-live-time');
+        const notionalEl = card.querySelector('.pos-live-notional');
+        const marginEl = card.querySelector('.pos-live-margin');
+        const pnlEl = card.querySelector('.pos-live-pnl');
+        const rEl = card.querySelector('.pos-live-r');
+
+        const tickClass = (live?._lastTickDir === 'up') ? 'price-flash-up' : ((live?._lastTickDir === 'down') ? 'price-flash-down' : '');
+        const color = change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)';
+
+        if (livePriceEl) {
+          livePriceEl.textContent = `NT$ ${formatPrice(price)}`;
+          livePriceEl.style.color = color;
+          livePriceEl.classList.remove('price-flash-up', 'price-flash-down');
+          if (tickClass) livePriceEl.classList.add(tickClass);
+        }
+
+        if (liveChangeEl) {
+          liveChangeEl.textContent = `(${formatChange(change)} / ${formatChangePct(changePct)})`;
+          liveChangeEl.style.color = color;
+        }
+
+        if (liveTimeEl) {
+          liveTimeEl.innerHTML = `<span class="live-pulse-dot"></span>${live?.timestamp || pos.timestamp || ''}`;
+        }
+
+        if (notionalEl) {
+          notionalEl.textContent = `NT$ ${Math.round(notionalValue).toLocaleString()}`;
+        }
+
+        if (marginEl) {
+          marginEl.textContent = `NT$ ${Math.round(margin).toLocaleString()}`;
+        }
+
+        if (pnlEl) {
+          pnlEl.textContent = `${unrealizedPnl >= 0 ? '+' : ''}NT$ ${Math.round(unrealizedPnl).toLocaleString()} (${formatChangePct(parseFloat(pnlPct))})`;
+          pnlEl.style.color = unrealizedPnl >= 0 ? 'var(--bull-color)' : 'var(--bear-color)';
+        }
+
+        if (rEl) {
+          rEl.textContent = `🎯 ${currentR} R`;
+          rEl.style.color = parseFloat(currentR) >= 1.0 ? 'var(--neon-cyan)' : 'var(--text-muted)';
+        }
+      });
+
+      // Update Summary Cards
+      const pnlCard = document.getElementById('portfolio-card-pnl');
+      const pnlRateCard = document.getElementById('portfolio-card-pnl-rate');
+      const notionalCard = document.getElementById('portfolio-card-notional');
+      const marginCard = document.getElementById('portfolio-card-margin');
+      const marginRateCard = document.getElementById('portfolio-card-margin-rate');
+
+      if (pnlCard) {
+        pnlCard.textContent = `${totalUnrealizedPnl >= 0 ? '+' : ''}NT$ ${Math.round(totalUnrealizedPnl).toLocaleString()}`;
+        pnlCard.style.color = totalUnrealizedPnl >= 0 ? 'var(--bull-color)' : 'var(--bear-color)';
+      }
+      if (pnlRateCard) {
+        pnlRateCard.textContent = `整體報酬率：${totalUnrealizedPnl >= 0 ? '+' : ''}${((totalUnrealizedPnl / this.totalCapital) * 100).toFixed(2)}%`;
+      }
+      if (notionalCard) {
+        notionalCard.textContent = `NT$ ${(totalNotionalValue / 10000).toFixed(1)} 萬`;
+      }
+      if (marginCard) {
+        marginCard.textContent = `NT$ ${Math.round(totalMarginUsed).toLocaleString()}`;
+      }
+      if (marginRateCard) {
+        const marginUtilizationPct = ((totalMarginUsed / this.totalCapital) * 100).toFixed(1);
+        marginRateCard.textContent = `佔帳戶資金比：${marginUtilizationPct}% (維持在40萬左右)`;
+      }
     }
   }
 
@@ -1881,21 +2026,21 @@ class StockFuturesTerminal {
                   : '';
 
                 return `
-                  <tr>
+                  <tr data-symbol="${item.symbol}">
                     <td><b style="font-size:1.1rem; color:${idx < 3 ? 'var(--neon-cyan)' : 'var(--text-muted)'};">#0${idx + 1}</b></td>
                     <td>
                       <b>${item.name} (${item.symbol})</b><br>
                       <small style="color:var(--text-dim);">${item.underlying} | ${item.sector}</small>
                     </td>
                     <td>
-                      <b class="${tickClass}" style="font-size:1.05rem; color:${item.change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'};">
+                      <b class="cell-live-price ${tickClass}" style="font-size:1.05rem; color:${item.change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'};">
                         NT$ ${formatPrice(item.price)}
                       </b>
                       ${priceTag}<br>
-                      <small style="color:${item.change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-weight:700;">
+                      <small class="cell-live-change" style="color:${item.change >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-weight:700;">
                         ${formatChange(item.change)} (${formatChangePct(item.changePct)})
                       </small>
-                      <div class="price-timestamp"><span class="live-pulse-dot"></span>${item.timestamp || ''}</div>
+                      <div class="price-timestamp cell-live-time"><span class="live-pulse-dot"></span>${item.timestamp || ''}</div>
                       <div style="font-size:0.68rem; color:var(--text-dim); margin-top:2px;">來源: ${item.price_source || (item.is_mock ? '模擬' : 'Shioaji')}</div>
                     </td>
                     <td>
@@ -2113,17 +2258,17 @@ class StockFuturesTerminal {
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:20px;">
         <div class="panel-card" style="margin-bottom:0; border-left:4px solid ${totalUnrealizedPnl >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'};">
           <div style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">庫存部位未實現總損益</div>
-          <div style="font-size:1.8rem; font-weight:900; color:${totalUnrealizedPnl >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; margin-top:4px;">
+          <div id="portfolio-card-pnl" style="font-size:1.8rem; font-weight:900; color:${totalUnrealizedPnl >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; margin-top:4px;">
             ${totalUnrealizedPnl >= 0 ? '+' : ''}NT$ ${Math.round(totalUnrealizedPnl).toLocaleString()}
           </div>
-          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+          <div id="portfolio-card-pnl-rate" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
             整體報酬率：${totalUnrealizedPnl >= 0 ? '+' : ''}${((totalUnrealizedPnl / this.totalCapital) * 100).toFixed(2)}%
           </div>
         </div>
 
         <div class="panel-card" style="margin-bottom:0; border-left:4px solid var(--neon-cyan);">
           <div style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">掌控名目合約總值</div>
-          <div style="font-size:1.8rem; font-weight:900; color:var(--neon-cyan); margin-top:4px;">
+          <div id="portfolio-card-notional" style="font-size:1.8rem; font-weight:900; color:var(--neon-cyan); margin-top:4px;">
             NT$ ${(totalNotionalValue / 10000).toFixed(1)} 萬
           </div>
           <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
@@ -2133,10 +2278,10 @@ class StockFuturesTerminal {
 
         <div class="panel-card" style="margin-bottom:0; border-left:4px solid var(--neon-purple);">
           <div style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">實際已用原始保證金</div>
-          <div style="font-size:1.8rem; font-weight:900; color:var(--neon-purple); margin-top:4px;">
+          <div id="portfolio-card-margin" style="font-size:1.8rem; font-weight:900; color:var(--neon-purple); margin-top:4px;">
             NT$ ${Math.round(totalMarginUsed).toLocaleString()}
           </div>
-          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+          <div id="portfolio-card-margin-rate" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
             佔帳戶資金比：${marginUtilizationPct}% (維持在40萬左右)
           </div>
         </div>
@@ -2183,7 +2328,7 @@ class StockFuturesTerminal {
             ${enrichedPositions.map(pos => {
               const tickClass = pos._lastTickDir === 'up' ? 'price-flash-up' : (pos._lastTickDir === 'down' ? 'price-flash-down' : '');
               return `
-                <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:18px; position:relative;">
+                <div class="pos-item-card" data-pos-id="${pos.id}" data-symbol="${pos.symbol}" style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:18px; position:relative;">
                   
                   <!-- Position Top Row -->
                   <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
@@ -2198,13 +2343,13 @@ class StockFuturesTerminal {
                       </div>
                       <div style="font-size:0.85rem; color:var(--text-muted); margin-top:6px;">
                         進場均價：<b style="color:var(--text-main);">NT$ ${formatPrice(pos.entryPrice)}</b> | 
-                        當前現價：<b class="${tickClass}" style="color:${pos.liveChange >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-size:1.05rem;">NT$ ${formatPrice(pos.livePrice)}</b> 
-                        <small style="color:${pos.liveChange >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-weight:700;">
+                        當前現價：<b class="pos-live-price ${tickClass}" style="color:${pos.liveChange >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-size:1.05rem;">NT$ ${formatPrice(pos.livePrice)}</b> 
+                        <small class="pos-live-change" style="color:${pos.liveChange >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'}; font-weight:700;">
                           (${formatChange(pos.liveChange)} / ${formatChangePct(pos.liveChangePct)})
                         </small> | 
-                        <span class="price-timestamp"><span class="live-pulse-dot"></span>${pos.timestamp || ''}</span> | 
-                        名目合約總值：<b style="color:var(--neon-cyan);">NT$ ${Math.round(pos.notionalValue).toLocaleString()}</b> | 
-                        已用保證金：<b style="color:var(--neon-purple);">NT$ ${Math.round(pos.margin).toLocaleString()}</b>
+                        <span class="price-timestamp pos-live-time"><span class="live-pulse-dot"></span>${pos.timestamp || ''}</span> | 
+                        名目合約總值：<b class="pos-live-notional" style="color:var(--neon-cyan);">NT$ ${Math.round(pos.notionalValue).toLocaleString()}</b> | 
+                        已用保證金：<b class="pos-live-margin" style="color:var(--neon-purple);">NT$ ${Math.round(pos.margin).toLocaleString()}</b>
                       </div>
                     </div>
 
@@ -2220,14 +2365,14 @@ class StockFuturesTerminal {
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:14px; background:var(--bg-base); padding:14px; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.04);">
                   <div>
                     <div style="font-size:0.75rem; color:var(--text-muted);">未實現損益</div>
-                    <div style="font-size:1.25rem; font-weight:900; color:${pos.unrealizedPnl >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'};">
+                    <div class="pos-live-pnl" style="font-size:1.25rem; font-weight:900; color:${pos.unrealizedPnl >= 0 ? 'var(--bull-color)' : 'var(--bear-color)'};">
                       ${pos.unrealizedPnl >= 0 ? '+' : ''}NT$ ${Math.round(pos.unrealizedPnl).toLocaleString()} (${formatChangePct(parseFloat(pos.pnlPct))})
                     </div>
                   </div>
 
                   <div>
                     <div style="font-size:0.75rem; color:var(--text-muted);">已賺取 R 倍數</div>
-                    <div class="r-multiplier-meter" style="color:${parseFloat(pos.currentR) >= 1.0 ? 'var(--neon-cyan)' : 'var(--text-muted)'};">
+                    <div class="r-multiplier-meter pos-live-r" style="color:${parseFloat(pos.currentR) >= 1.0 ? 'var(--neon-cyan)' : 'var(--text-muted)'};">
                       🎯 ${pos.currentR} R
                     </div>
                   </div>
