@@ -1015,11 +1015,11 @@ async function fetchLiveQuoteFromYahoo(stockId) {
   const suffixes = isOtc ? ['TWO', 'TW'] : ['TW', 'TWO'];
 
   for (const suffix of suffixes) {
-    const rawUrl = https://query1.finance.yahoo.com/v8/finance/chart/.?interval=1m;
+    const rawUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanId}.${suffix}?interval=1m`;
     const urlsToTry = [
       rawUrl,
-      https://corsproxy.io/?,
-      https://api.allorigins.win/raw?url=
+      `https://corsproxy.io/?url=${encodeURIComponent(rawUrl)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`
     ];
 
     for (const targetUrl of urlsToTry) {
