@@ -164,6 +164,12 @@ def run_connection_test():
         print(f"\n❌ Snapshot 查詢時發生例外: {str(e)}")
         traceback.print_exc()
         sys.exit(1)
+    finally:
+        try:
+            print("[connection_test] 正在主動登出釋放 Shioaji 連線...")
+            api.logout()
+        except Exception:
+            pass
 
     print("\n✓ [Shioaji 正式連線與 Snapshot 報價測試完全成功]\n")
 

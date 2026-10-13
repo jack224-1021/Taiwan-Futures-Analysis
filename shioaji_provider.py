@@ -14,6 +14,7 @@ import os
 import sys
 import time
 import datetime
+import atexit
 from typing import Dict, List, Optional, Any
 
 try:
@@ -119,8 +120,22 @@ class ShioajiLiveProvider:
         self.last_tick_timestamp = None
         self.login_error_message = None
         self.live_quotes_cache: Dict[str, Dict[str, Any]] = {}
+        self._snapshots_cache: Dict[str, Dict[str, Any]] = {}
 
         self._init_session()
+        atexit.register(self.close)
+
+    def close(self):
+        """主動登出並釋放 Solace 連線，防止 Too Many Connections (451)"""
+        if self.sj:
+            try:
+                print("[ShioajiLiveProvider] 正在主動登出 Shioaji 釋放券商連線配額...")
+                self.sj.logout()
+            except Exception as e:
+                print(f"[ShioajiLiveProvider] 登出提示: {e}")
+            finally:
+                self.sj = None
+                self.is_connected = False
 
     def _init_session(self):
         """登入正式環境 (simulation=False)"""
@@ -250,6 +265,15 @@ class ShioajiLiveProvider:
 
         session = get_market_session_info()
         target_codes = contracts or ['CDFR1', 'JFFR1', 'DHFR1', 'GDFR1', 'JGFR1', 'DVFR1', 'CZFR1', 'QAFR1', 'PAFR1', 'TXFR1']
+        
+        # 1.5 秒記憶體快取：保護高頻輪詢不衝擊券商 API
+        now = time.time()
+        cache_key = ",".join(sorted(target_codes))
+        if hasattr(self, '_snapshots_cache') and cache_key in self._snapshots_cache:
+            cached = self._snapshots_cache[cache_key]
+            if (now - cached['time']) < 1.5:
+                return cached['data']
+
         results = []
 
         try:
@@ -351,9 +375,40 @@ class ShioajiLiveProvider:
                         }
                     })
 
+            self._snapshots_cache[cache_key] = {'time': now, 'data': results}
             return results
         except Exception as e:
             raise ShioajiLiveError(f"Shioaji Snapshots 行情取得失敗: {str(e)}")
+
+# ==============================================================================
+# 全域 ShioajiLiveProvider 單例模式 (Singleton Pattern)
+# 確保整個應用程式生命週期僅存在單一 Solace 連線，徹底避免 Too Many Connections (451)
+# ==============================================================================
+_GLOBAL_LIVE_PROVIDER: Optional[ShioajiLiveProvider] = None
+
+def get_or_create_live_provider(api_key: Optional[str] = None, secret_key: Optional[str] = None) -> ShioajiLiveProvider:
+    global _GLOBAL_LIVE_PROVIDER
+    if _GLOBAL_LIVE_PROVIDER is not None and getattr(_GLOBAL_LIVE_PROVIDER, 'is_connected', False):
+        return _GLOBAL_LIVE_PROVIDER
+
+    if _GLOBAL_LIVE_PROVIDER is not None:
+        try:
+            _GLOBAL_LIVE_PROVIDER.close()
+        except Exception:
+            pass
+        _GLOBAL_LIVE_PROVIDER = None
+
+    _GLOBAL_LIVE_PROVIDER = ShioajiLiveProvider(api_key=api_key, secret_key=secret_key)
+    return _GLOBAL_LIVE_PROVIDER
+
+def close_global_live_provider():
+    global _GLOBAL_LIVE_PROVIDER
+    if _GLOBAL_LIVE_PROVIDER is not None:
+        try:
+            _GLOBAL_LIVE_PROVIDER.close()
+        except Exception:
+            pass
+        _GLOBAL_LIVE_PROVIDER = None
 
 class ShioajiProvider:
     """
@@ -374,7 +429,7 @@ class ShioajiProvider:
             # 檢查是否有設定 Shioaji 金鑰
             api_key = os.getenv("SJ_API_KEY") or os.getenv("SHIOAJI_API_KEY", "")
             if api_key and "your_" not in api_key.lower():
-                self.live_provider = ShioajiLiveProvider()
+                self.live_provider = get_or_create_live_provider()
                 self.is_connected = self.live_provider.is_connected
             else:
                 # 若未設定金鑰，自動切換至 100% 免費開放 API 模式
@@ -388,6 +443,12 @@ class ShioajiProvider:
             self.is_connected = True
         else:
             self.is_connected = True
+
+    def close(self):
+        """關閉連線"""
+        if self.live_provider:
+            close_global_live_provider()
+            self.is_connected = False
 
     def get_connection_status(self) -> Dict[str, Any]:
         if self.data_mode == "live":

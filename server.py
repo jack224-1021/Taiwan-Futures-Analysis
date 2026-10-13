@@ -46,10 +46,24 @@ class MarketDataService:
         self.taifex_provider = TaifexProvider()
         self.twse_provider = TwseFinMindProvider()
         self.init_error = None
-        self.last_env_check = 0
-        self._reload_env_and_provider()
+        self.last_connect_attempt = 0
+        self.reconnect_cooldown = 20.0  # 失敗冷卻時間 (秒)，防止被 Solace 451 封鎖
+        self._cached_market_data = None
+        self._cached_market_data_time = 0
+        self._reload_env_and_provider(force=True)
 
-    def _reload_env_and_provider(self):
+    def _reload_env_and_provider(self, force: bool = False):
+        now = time.time()
+        # 若已連線成功且非強制，絕不重複連線登入
+        if not force and self.provider and getattr(self.provider, "is_connected", False):
+            return
+
+        # 冷卻期保護：若前次失敗，至少間隔 reconnect_cooldown 秒才可再次嘗試
+        if not force and self.init_error and (now - self.last_connect_attempt < self.reconnect_cooldown):
+            return
+
+        self.last_connect_attempt = now
+
         try:
             from dotenv import load_dotenv
             load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"), override=True)
@@ -62,22 +76,30 @@ class MarketDataService:
         try:
             self.provider = ShioajiProvider(data_mode=self.data_mode)
             self.init_error = None
+            print(f"[MarketDataService] 提供者初始化成功 (Mode: {self.data_mode})")
         except ShioajiLiveError as e:
             self.provider = None
-            self.init_error = str(e)
+            err_str = str(e)
+            if "Too Many Connections" in err_str or "451" in err_str:
+                self.init_error = "券商連線數達到上限 (451 Too Many Connections)。系統進入 20 秒冷卻保護中，請稍候重試。"
+            else:
+                self.init_error = err_str
+            print(f"[MarketDataService] 連線警告: {self.init_error}")
         except Exception as e:
             self.provider = None
             self.init_error = f"未預期連線錯誤: {str(e)}"
+            print(f"[MarketDataService] 未預期錯誤: {self.init_error}")
 
     def get_system_status(self):
-        if time.time() - self.last_env_check > 3.0:
-            self.last_env_check = time.time()
-            self._reload_env_and_provider()
+        # 僅在未連線時嘗試連線（受冷卻保護）
+        if not self.provider or not getattr(self.provider, "is_connected", False):
+            if (time.time() - self.last_connect_attempt) > self.reconnect_cooldown:
+                self._reload_env_and_provider()
 
         session = get_market_session_info()
         settlement = get_settlement_info()
 
-        if self.provider:
+        if self.provider and getattr(self.provider, "is_connected", False):
             status = self.provider.get_connection_status()
             status["settlement"] = settlement
             return status
@@ -87,10 +109,10 @@ class MarketDataService:
                 "data_mode": "live",
                 "is_live": True,
                 "connected": False,
-                "status_text": "未連線 (Shioaji 正式連線異常)",
+                "status_text": "未連線 (Shioaji 連線冷卻或異常)",
                 "latency_ms": None,
                 "is_delayed": True,
-                "error": self.init_error or "Shioaji 提供者未建立",
+                "error": self.init_error or "Shioaji 連線未就緒",
                 "market_session": session,
                 "settlement": settlement
             }
@@ -107,9 +129,22 @@ class MarketDataService:
                 "settlement": settlement
             }
 
+    def close(self):
+        """關閉連線"""
+        if self.provider and hasattr(self.provider, "close"):
+            self.provider.close()
+
     def get_full_market_data(self):
-        if self.data_mode == "live" and (self.init_error or not self.provider):
-            raise ShioajiLiveError(self.init_error or "Shioaji 正式環境未就緒")
+        now = time.time()
+        # 2.0 秒快取：避免前端短時間高頻重複索取行情
+        if self._cached_market_data and (now - self._cached_market_data_time < 2.0):
+            return self._cached_market_data
+
+        if self.data_mode == "live" and (not self.provider or not getattr(self.provider, "is_connected", False)):
+            if (now - self.last_connect_attempt) > self.reconnect_cooldown:
+                self._reload_env_and_provider()
+            if not self.provider or not getattr(self.provider, "is_connected", False):
+                raise ShioajiLiveError(self.init_error or "Shioaji 正式環境未就緒")
 
         session = get_market_session_info()
         settlement = get_settlement_info()
@@ -229,13 +264,16 @@ class MarketDataService:
             }
         }
 
-        return {
+        payload = {
             "status": self.get_system_status(),
             "indices": market_indices,
             "futures": results,
             "settlement": settlement,
             "session": session
         }
+        self._cached_market_data = payload
+        self._cached_market_data_time = now
+        return payload
 
 market_service = MarketDataService()
 
@@ -290,8 +328,14 @@ def run_server(port: int = 8000):
     print(f"================================================================================")
     try:
         httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[Server] 正在停止伺服器...")
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        print("\n[Server] 正在停止伺服器並釋放券商連線...")
+        try:
+            market_service.close()
+        except Exception:
+            pass
         httpd.server_close()
 
 if __name__ == "__main__":
