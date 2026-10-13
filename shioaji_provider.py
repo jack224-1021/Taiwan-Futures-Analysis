@@ -149,8 +149,7 @@ class ShioajiLiveProvider:
             self.sj = sj.Shioaji(simulation=False)
             self.accounts = self.sj.login(
                 api_key=self.api_key,
-                secret_key=self.secret_key,
-                contracts_timeout=15000
+                secret_key=self.secret_key
             )
 
             # 若有憑證則載入憑證啟用完整行情權限 (純行情查詢非必要，但若有配置則載入)
@@ -254,18 +253,56 @@ class ShioajiLiveProvider:
         results = []
 
         try:
+            SYMBOL_ALIASES = {
+                "GDF": "DKF",
+                "GBF": "DXF",
+                "JFF": "RAF",
+                "JGF": "PTF",
+                "CPF": "FRF",
+                "DBF": "QXF",
+                "QAF": "VMF",
+                "PAF": "UMF",
+                "NVF": "JBF",
+                "DLF": "GHF",
+                "IKF": "IRF",
+                "PGF": "PVF"
+            }
+            SPOT_UNDERLYINGS = {
+                "RSF": "6442",
+                "RTF": "3450",
+                "SWF": "3131",
+                "SXF": "3583",
+                "SYF": "6187"
+            }
             target_contracts = []
+            code_to_sym = {}
             for code in target_codes:
-                prefix = code[:3]
-                # 從 Contracts.Futures 中定位契約物件
-                contract_obj = getattr(self.sj.Contracts.Futures, prefix, None)
-                if contract_obj and code in contract_obj:
-                    target_contracts.append(contract_obj[code])
-                elif contract_obj:
-                    # 若精確代號不存在則取第一個契約
-                    for k, c in contract_obj.items():
-                        target_contracts.append(c)
-                        break
+                raw_prefix = code[:3].upper()
+                if raw_prefix in SPOT_UNDERLYINGS:
+                    sid = SPOT_UNDERLYINGS[raw_prefix]
+                    stk = getattr(getattr(self.sj, 'Contracts', None), 'Stocks', None)
+                    if stk:
+                        c = getattr(stk, sid, None)
+                        if c:
+                            target_contracts.append(c)
+                            code_to_sym[c.code] = raw_prefix
+                    continue
+
+                prefix = SYMBOL_ALIASES.get(raw_prefix, raw_prefix)
+                try:
+                    fut_list = self.sj.contracts.futures(prefix)
+                    matched = None
+                    for c in fut_list:
+                        if getattr(c, 'code', '') == f"{prefix}R1" or getattr(c, 'code', '') == code:
+                            matched = c
+                            break
+                    if not matched and fut_list:
+                        matched = fut_list[0]
+                    if matched:
+                        target_contracts.append(matched)
+                        code_to_sym[matched.code] = raw_prefix
+                except Exception:
+                    pass
 
             if target_contracts:
                 snapshots = self.sj.snapshots(target_contracts)
@@ -285,9 +322,10 @@ class ShioajiLiveProvider:
                         datetime.datetime.fromtimestamp(snap.ts).strftime("%Y/%m/%d %H:%M:%S")
                     )
 
+                    sym = code_to_sym.get(snap.code, snap.code[:3])
                     results.append({
                         "code": snap.code,
-                        "symbol": snap.code[:3],
+                        "symbol": sym,
                         "name": getattr(snap, "name", snap.code),
                         "close": close_val,
                         "open": float(snap.open),

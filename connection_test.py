@@ -78,8 +78,7 @@ def run_connection_test():
     try:
         accounts = api.login(
             api_key=api_key,
-            secret_key=secret_key,
-            contracts_timeout=15000
+            secret_key=secret_key
         )
         print("✓ [Shioaji 登入成功] 登入結果正常回應！")
     except Exception as e:
@@ -108,7 +107,7 @@ def run_connection_test():
             person_id = getattr(acc, 'person_id', 'N/A')
             broker_id = getattr(acc, 'broker_id', 'N/A')
             signed = getattr(acc, 'signed', False)
-            print(f"   [{i}] 類型: {acc_type:<10} | 券商代碼: {broker_id} | 帳號: {mask_str(str(acc_id), 3, 3)} | 身分證/統編: {mask_str(str(person_id), 2, 2)} | 已簽署: {signed}")
+            print(f"   [{i}] 類型: {str(acc_type):<10} | 券商代碼: {broker_id} | 帳號: {mask_str(str(acc_id), 3, 3)} | 身分證/統編: {mask_str(str(person_id), 2, 2)} | 已簽署: {signed}")
     else:
         print(" ⚠️ 登入成功但未回傳任何可用帳戶清單。")
 
@@ -117,22 +116,26 @@ def run_connection_test():
     try:
         # 尋找 CDF 契約
         target_contract = None
-        if hasattr(api.Contracts, 'Futures') and hasattr(api.Contracts.Futures, 'CDF'):
-            cdf_group = api.Contracts.Futures.CDF
-            # 優先找 CDFR1 或第一檔合約
-            if 'CDFR1' in cdf_group:
-                target_contract = cdf_group['CDFR1']
-            else:
-                for code, c in cdf_group.items():
-                    target_contract = c
-                    break
+        try:
+            cdf_list = api.contracts.futures('CDF')
+            if cdf_list:
+                for c in cdf_list:
+                    if getattr(c, 'code', '') == 'CDFR1':
+                        target_contract = c
+                        break
+                if not target_contract:
+                    target_contract = cdf_list[0]
+        except Exception:
+            pass
 
         # 若未找到 CDFR1，則使用 TXFR1 (台指期近月) 作為備選
-        if not target_contract and hasattr(api.Contracts, 'Futures') and hasattr(api.Contracts.Futures, 'TXF'):
-            target_contract = api.Contracts.Futures.TXF.get('TXFR1')
-
         if not target_contract:
-            print(" ⚠️ 未在 Contracts 目錄中找到 CDFR1 / TXFR1 契約物件，嘗試直接以合約代碼查詢。")
+            try:
+                txf_list = api.contracts.futures('TXF')
+                if txf_list:
+                    target_contract = txf_list[0]
+            except Exception:
+                pass
 
         if target_contract:
             print(f" ▸ 目標契約物件: {target_contract.code} - {getattr(target_contract, 'name', '')}")
